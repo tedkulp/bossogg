@@ -181,7 +181,7 @@ int main (int argc, char *argv[])
    plugin = input_plugin_find (argv[2]);
    input_plugin_set (plugin);
    input_open (song, argv[2]);
-   g_usleep (10000);
+   g_usleep (100000);
    g_mutex_unlock (cons_pause_mutex);
    //sleep (secs_to_sleep);
 
