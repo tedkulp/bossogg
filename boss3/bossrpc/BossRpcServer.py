@@ -4,6 +4,7 @@ import socket, select, string, thread, threading, xmlrpclib
 from boss3.util.Session import *
 from boss3.util import bosslog
 from boss3.xmlrpc.XmlRpcServer import XmlRpcInterface
+import zlib
 
 log = bosslog.getLogger()
 
@@ -28,6 +29,8 @@ class BossClientInterface:
 		self.threadid.join()
 
 class BossRpcServer(threading.Thread):
+
+	compression = True
 
 	interface = None
 
@@ -55,7 +58,7 @@ class BossRpcServer(threading.Thread):
 			self.interface = XmlRpcInterface()
 
 		except Exception:
-			#log.error("Boss-RPC port already bound.  Shutting it down.")
+			log.error("Boss-RPC port already bound.  Shutting it down.")
 			self.shutdown = True
 
 	def run(self):
@@ -88,12 +91,15 @@ class BossRpcServer(threading.Thread):
 								#log.debug("bossrpc","start of data")
 						log.debug("bossrpc", "%i - %i" % (self.lengths[i.fileno()], len(self.data[i.fileno()])))
 						if self.lengths[i.fileno()] <= len(self.data[i.fileno()]):
-							response = xmlrpclib.loads(self.data[i.fileno()])
+							xml = self.data[i.fileno()]
+							xml = string.strip(zlib.decompress(xml))
+							response = xmlrpclib.loads(xml)
 							log.debug("bossrpc","Received xmlrpc message: %s", response)
 							if response[1] in dir(self.interface) and callable(getattr(self.interface, response[1])):
 								ans = (getattr(self.interface,response[1])(*response[0]),)
 								#print ans
-								xml = xmlrpclib.dumps(ans, methodresponse=True)
+								xml = string.strip(xmlrpclib.dumps(ans, methodresponse=True))
+								xml = zlib.compress(xml)
 								#print xml
 								i.sendall("%i:%s" % (len(xml),xml))
 							del self.lengths[i.fileno()]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import socket, time, xmlrpclib, string
+import socket, time, xmlrpclib, string, zlib
 
 class _Method:
     # some magic to bind an XML-RPC method to an RPC server.
@@ -33,17 +33,19 @@ class ServerProxy:
 	def sendFunction(self, fncname, params):
 		if self.s is not None:
 			xml = string.strip(xmlrpclib.dumps(params,methodname=fncname))
+			xml = zlib.compress(xml)
 			self.s.send("%i:%s" % (len(xml),xml))
 			start = 1
 			maxlen = 1
 			result = ''
 			while len(result) < maxlen or start == 1:
 				if start == 1:
-					(maxlen,result) = string.split(self.s.recv(1024),':')
+					(maxlen,result) = string.split(self.s.recv(1024),':',1)
 					maxlen = int(maxlen)
 					start = 0
 				else:
 					result += self.s.recv(1024)
+			result = zlib.decompress(result)
 			print ("result: %s" % str(xmlrpclib.loads(result)[0][0]))
 			time.sleep(.05)
 	
