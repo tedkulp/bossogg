@@ -36,6 +36,8 @@ typedef struct chunk_t {
 
 //static chunk_s chunks[THBUF_SIZE];
 
+thbuf_sem_t *eof_sem;
+
 static thbuf_t *thbuf;
 static GMutex *pause_mutex, *produce_mutex;
 static GThread *producer, *consumer;
@@ -66,14 +68,19 @@ static gpointer producer_thread (gpointer p)
    chunk_s *cur_chunk;
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
-   gchar eof = 0;
-   gchar eof_once = 0;
+   gchar eof = -1;
+   //gchar eof_once = 0;
    gchar *filename;
    gchar *last_filename = NULL;
 
    g_usleep (10000);
-   
+
    while (1) {
+      if (eof == -1) {
+	 LOG ("waiting on eof sem");
+	 semaphore_p (eof_sem);
+      }
+      
       g_mutex_lock (produce_mutex);
       filename = input_filename ();
       if (last_filename == NULL)
@@ -90,7 +97,7 @@ static gpointer producer_thread (gpointer p)
 	 if (eof)
 	    LOG ("was eof...");
       }
-
+/*
       if (eof_once) {
 	 eof_once = 0;
 	 if (eof) {
@@ -117,8 +124,10 @@ static gpointer producer_thread (gpointer p)
 	    LOG ("sample EOF: %lld %lld", last_sample_num, sample_num);
 	    eof = 1;
 	 }
-      }
+	 }
+*/
       cur_chunk->eof = eof;
+      /*
       if (eof_once) {
 	 LOG ("sleeping...");
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
@@ -131,7 +140,7 @@ static gpointer producer_thread (gpointer p)
 	 LOG ("continuing");
 	 continue;
       }
-      
+      */
       if (quit) {
 	 g_usleep (100000);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
@@ -139,15 +148,17 @@ static gpointer producer_thread (gpointer p)
 	 g_thread_exit (NULL);
       }
       if (chunk == NULL) {
-	 LOG ("got a NULL chunk...");
+	 LOG ("got a NULL chunk... eof %d", cur_chunk->eof);
 	 //g_free (cur_chunk);
 	 g_mutex_lock (produce_mutex);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
 	 producer_pos++;
 	 producer_pos %= THBUF_SIZE;
 	 g_mutex_unlock (produce_mutex);
-	 g_usleep (40000);
-	 continue;
+	 if (!cur_chunk->eof) {
+	    g_usleep (10000);
+	    continue;
+	 }
       }
       //LOG ("producing");
       g_mutex_lock (produce_mutex);
@@ -165,6 +176,10 @@ static gpointer producer_thread (gpointer p)
       producer_pos++;
       producer_pos %= THBUF_SIZE;
       g_mutex_unlock (produce_mutex);
+      if (eof) {
+	 LOG ("chunk was eof, waiting on semaphore");
+	 semaphore_p (eof_sem);
+      }
 
       last_sample_num = sample_num;
       
@@ -202,9 +217,10 @@ static gpointer consumer_thread (gpointer p)
 	 continue;
       }
       if (chunk->chunk == NULL) {
-	 LOG ("got a NULL chunk %d %d", (gint)last_sample_num, (gint)input_plugin_samples_total ());
+	 LOG ("got a NULL chunk %d %d eof %d", (gint)last_sample_num,
+	      (gint)input_plugin_samples_total (), chunk->eof);
 	 if (last_sample_num == chunk->sample_num) {
-	    LOG ("was eof?");
+	    LOG ("was eof?: %d", chunk->eof);
 	    input_plugin_set_end_of_file ();
 	    g_usleep (100000);
 	 }
@@ -213,6 +229,8 @@ static gpointer consumer_thread (gpointer p)
 	 if (!chunk->eof) {
 	    LOG ("wasn't eof");
 	    continue;
+	 } else {
+	    LOG ("was eof");
 	 }
       }
       if (chunk->eof) {
@@ -311,6 +329,9 @@ void bossao_stop (void)
 void bossao_new (PyObject *cfgparser, gchar *filename)
 {
    bossao_thread_init ();
+
+   eof_sem = semaphore_new (0);
+   
    init_plugins (cfgparser);
 
    output_plugin_open_all (cfgparser);
@@ -374,6 +395,7 @@ gint bossao_play (gchar *filename)
    input_plugin_set (plugin);
    input_open (plugin, filename);
    stopped = 0;
+   semaphore_v (eof_sem);
    g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
    g_usleep (100000);
