@@ -136,7 +136,12 @@ static gpointer consumer_thread (gpointer p)
    while (1) {
       //LOG ("consuming");
       g_mutex_lock (pause_mutex);
-      chunk = (chunk_s *)thbuf_consume (thbuf, &count);
+      if (thbuf_current_size (thbuf))
+	 chunk = (chunk_s *)thbuf_consume (thbuf, &count);
+      else {
+	 g_usleep (10000);
+	 continue;
+      }
       g_mutex_unlock (pause_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
