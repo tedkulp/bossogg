@@ -162,8 +162,8 @@ thbuf_t *thbuf_new (size_t size)
    buf = (thbuf_t *)g_malloc (sizeof (thbuf_t));
 
    /* allocate size members of p's and the size array */
-   buf->buf = (void **)g_malloc (sizeof (void *) * (size));
-   buf->chunk_size = (size_t *)g_malloc (sizeof (size_t) * (size));
+   buf->buf = (void **)g_malloc (sizeof (void *) * (size) + 1);
+   buf->chunk_size = (size_t *)g_malloc (sizeof (size_t) * (size) + 1);
 
    /* initialize all members to 0 */
    for (i = 0; i < size; i++) {
