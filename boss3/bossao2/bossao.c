@@ -195,6 +195,15 @@ static gpointer consumer_thread (gpointer p)
       static_semaphore_p (&cons_pause_sem);
       //size = thbuf_current_size (thbuf);
       size = thbuf_static_current_size (&thbuf);
+      if (quit) {
+	 g_usleep (10000);
+	 //thbuf_consume (thbuf, &count);
+	 if (size)
+	    thbuf_static_consume (&thbuf, &count);
+	 LOG ("stopping thread");
+	 g_thread_exit (NULL);
+      }
+      
       //chunk = (chunk_s *)thbuf_consume (thbuf, &count);
       chunk = (chunk_s *)thbuf_static_consume (&thbuf, &count);
       //semaphore_v (cons_pause_sem);
@@ -276,7 +285,8 @@ static gpointer consumer_thread (gpointer p)
       if (quit) {
 	 g_usleep (10000);
 	 //thbuf_consume (thbuf, &count);
-	 thbuf_static_consume (&thbuf, &count);
+	 if (size)
+	    thbuf_static_consume (&thbuf, &count);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
@@ -422,6 +432,8 @@ void bossao_free (void)
    LOG ("input plugins closed");
    output_plugin_close_all ();
    LOG ("output plugins closed");
+   static_semaphore_v (&prod_pause_sem);
+   static_semaphore_v (&cons_pause_sem);
    bossao_join ();
    LOG ("joined");
 
