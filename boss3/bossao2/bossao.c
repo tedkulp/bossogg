@@ -36,7 +36,7 @@ typedef struct chunk_t {
 
 //static chunk_s chunks[THBUF_SIZE];
 
-thbuf_sem_t *eof_sem;
+static thbuf_sem_t *eof_sem;
 
 static thbuf_t *thbuf;
 static GMutex *pause_mutex, *produce_mutex;
@@ -69,7 +69,6 @@ static gpointer producer_thread (gpointer p)
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
    gchar eof = -1;
-   //gchar eof_once = 0;
    gchar *filename;
    gchar *last_filename = NULL;
 
@@ -98,50 +97,7 @@ static gpointer producer_thread (gpointer p)
 	 if (eof)
 	    LOG ("was eof...");
       }
-/*
-      if (eof_once) {
-	 eof_once = 0;
-	 if (eof) {
-	    g_usleep (100000);
-	    continue;
-	 }
-      }
-
-      if (eof) {
-	 LOG ("got eof");
-	 if (last_sample_num > 0) {
-	    if (eof_once != 1) {
-	       eof = 1;
-	       eof_once = 1;
-	    } else
-	       eof = 0;
-	 }
-	 if (filename != last_filename) {
-	    last_filename = filename;
-	    //eof_once = 0;
-	 }
-      } else {
-	 if (last_sample_num == sample_num && last_sample_num > 0) {
-	    LOG ("sample EOF: %lld %lld", last_sample_num, sample_num);
-	    eof = 1;
-	 }
-	 }
-*/
       cur_chunk->eof = eof;
-      /*
-      if (eof_once) {
-	 LOG ("sleeping...");
-	 thbuf_produce (thbuf, cur_chunk, producer_pos);
-	 producer_pos++;
-	 producer_pos %= THBUF_SIZE;
-	 while (last_filename == input_filename ())
-	    g_usleep (1000);
-	 g_usleep (100000);
-	 //eof_once = 0;
-	 LOG ("continuing");
-	 continue;
-      }
-      */
       if (quit) {
 	 g_usleep (100000);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
@@ -164,16 +120,6 @@ static gpointer producer_thread (gpointer p)
       //LOG ("producing");
       g_mutex_lock (produce_mutex);
       thbuf_produce (thbuf, cur_chunk, producer_pos);
-      /*
-      if (eof) {
-	 if (!eof_once) {
-	    g_usleep (40000);
-	    eof = 0;
-	    eof_once = 1;
-	 }
-	 }
-      */
-      //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
       producer_pos %= THBUF_SIZE;
       g_mutex_unlock (produce_mutex);
@@ -238,7 +184,7 @@ static gpointer consumer_thread (gpointer p)
       if (chunk->eof) {
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
-	 g_usleep (100000);
+	 g_usleep (10000);
 	 continue;
       }
 
@@ -374,12 +320,12 @@ void bossao_free (void)
    LOG ("stopping");
    bossao_stop ();
    LOG ("stopped");
-   //bossao_join ();
-   //LOG ("joined");
-   
    input_plugin_close_all ();
+   LOG ("input plugins closed");
    output_plugin_close_all ();
-   LOG ("plugins closed");
+   LOG ("output plugins closed");
+   bossao_join ();
+   LOG ("joined");
 
    //g_mutex_lock (pause_mutex);
    g_mutex_free (pause_mutex);
