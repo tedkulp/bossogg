@@ -46,7 +46,8 @@ static gpointer producer_thread (gpointer p)
       chunk = input_play_chunk (&size, NULL/*&chunks[producer_pos * BUF_SIZE]*/);
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
-	 g_usleep (10000);
+	 g_usleep (100000);
+	 g_mutex_unlock (produce_mutex);
 	 continue;
       }
       thbuf_produce (thbuf, chunk, size, producer_pos);
@@ -78,6 +79,7 @@ static gpointer consumer_thread (gpointer p)
       if (chunk == NULL || size == 0) {
 	 LOG ("got a NULL chunk %p %d...", chunk, size);
 	 g_usleep (10000);
+	 g_mutex_unlock (pause_mutex);
 	 continue;
       }
       output_plugin_write_chunk_all (chunk, size);
@@ -135,13 +137,9 @@ inline void bossao_unpause (void)
 inline void bossao_stop (void)
 {
    g_mutex_lock (produce_mutex);
-   //LOG ("stopped produce mutex");
    g_mutex_lock (pause_mutex);
-   //LOG ("stopped pause mutex");
    thbuf_clear (thbuf);
-   //LOG ("cleared");
    input_close ();
-   //LOG ("closed");
    consumer_pos = 0;
    producer_pos = 0;
 }
@@ -200,14 +198,10 @@ gint bossao_play (gchar *filename)
    input_plugin_s *plugin = input_plugin_find (filename);
    input_plugin_set (plugin);
    input_open (filename);
-   //g_usleep (1000);
    LOG ("'%s' has %f total time", filename, input_time_total ());
    g_mutex_unlock (produce_mutex);
-   //LOG ("produce mutex unlocked");
    g_usleep (10000);
-   //LOG ("done sleeping");
    g_mutex_unlock (pause_mutex);
-   //LOG ("pause mutex unlocked");
    
    return 0;
 }

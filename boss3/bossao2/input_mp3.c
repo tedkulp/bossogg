@@ -242,8 +242,10 @@ gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
    }
    gint buf_size;
 
-   if (mp3_read (song, buffer, &buf_size) == DECODE_BREAK)
+   if (mp3_read (song, buffer, &buf_size) == DECODE_BREAK) {
+      g_free (buffer);
       return NULL;
+   }
    //output_plugin_write_chunk_all (NULL, buffer, buf_size);
    *size = buf_size;
    
@@ -258,11 +260,11 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
    memset (p_mp3, 0, sizeof (private_mp3_s));
    song_s *song = song_new (plugin, p_mp3);
    
-   p_mp3->mp3_total_time = 0.0;
-   p_mp3->mp3_elapsed_time = 0.0;
-   p_mp3->mp3_frame_count = 0;
-   p_mp3->mp3_status = 0;
-   p_mp3->mp3_start = 0;
+   //p_mp3->mp3_total_time = 0.0;
+   //p_mp3->mp3_elapsed_time = 0.0;
+   //p_mp3->mp3_frame_count = 0;
+   //p_mp3->mp3_status = 0;
+   //p_mp3->mp3_start = 0;
    
    mad_stream_init (&p_mp3->mp3_stream);
    mad_frame_init (&p_mp3->mp3_frame);
@@ -280,7 +282,7 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
    p_mp3->mp3_total_time = (filestat.st_size * 8.0) /
       p_mp3->mp3_frame.header.bitrate;
 
-   LOG ("mp3 file '%s' opened");
+   LOG ("mp3 file '%s' opened", filename);
 
    return song;
 }

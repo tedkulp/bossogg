@@ -84,6 +84,11 @@ gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
    gchar *ret = g_malloc (BUF_SIZE);
    private_ogg_s *p_ogg = (private_ogg_s *)song->private;
    *size = ov_read (&p_ogg->vorbis_file, ret, BUF_SIZE / 2, 0, 2, 1, &current);
+   if (*size == 0) {
+      LOG ("end of file?");
+      g_free (ret);
+      return NULL;
+   }
    
    return ret;
 }
