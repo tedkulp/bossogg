@@ -270,6 +270,9 @@ gint _input_close (song_s *song)
       FLAC__file_decoder_delete (decoder);
       decoder= NULL;
    }
+
+   song_free (song);
+   g_free (p_flac);
    
    return 0;
 }

@@ -91,6 +91,9 @@ static gpointer producer_thread (gpointer p)
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
    gchar eof = -1;
+   gint pos = 0;
+
+   chunk_s *chunks = (chunk_s *)g_malloc (sizeof (chunk_s) * THBUF_SIZE);
    
    g_usleep (10000);
 
@@ -106,9 +109,10 @@ static gpointer producer_thread (gpointer p)
       //semaphore_p (prod_pause_sem);
       static_semaphore_p (&prod_pause_sem);
       chunk = input_play_chunk (&size, &sample_num, &eof);
+      //cur_chunk = &chunks[pos];
       //semaphore_v (prod_pause_sem);
       static_semaphore_v (&prod_pause_sem);
-     //g_mutex_unlock (produce_mutex);
+      //g_mutex_unlock (produce_mutex);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
       cur_chunk->chunk = chunk;
       cur_chunk->size = size;
@@ -139,7 +143,7 @@ static gpointer producer_thread (gpointer p)
       //LOG ("producing");
       //g_mutex_lock (produce_mutex);
       //thbuf_produce (thbuf, cur_chunk);
-      thbuf_static_produce (&thbuf, cur_chunk);
+      pos = thbuf_static_produce (&thbuf, cur_chunk);
       //g_mutex_unlock (produce_mutex);
 
       //buffer_free_callback (old_chunk);
@@ -279,7 +283,6 @@ static gpointer consumer_thread (gpointer p)
 	 //semaphore_p (consume_eof_sem);
 	 static_semaphore_p (&consume_eof_sem);
 	 //g_usleep (10000);
-	 //g_free (chunk);
 	 //continue;
       }
 

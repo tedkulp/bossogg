@@ -388,6 +388,7 @@ gint _input_close (song_s *song)
    fclose (p_mp3->mp3_file);
 
    song_free (song);
+   g_free (p_mp3);
    
    return 0;
 }

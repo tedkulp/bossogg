@@ -148,7 +148,7 @@ gint thbuf_produce (thbuf_t *buf, void *p)
    //LOG ("produced to %d", buf->produce_pos);
    buf->produce_pos = (buf->produce_pos + 1) % (THBUF_SIZE);
    //LOG ("added %p size %d to %d", buf->buf[pos], buf->chunk_size[pos], pos);
-   ret = buf->full->count - 1;
+   ret = buf->full->count + 1;
    g_mutex_unlock (buf->mutex);
 
    // perform a v operation on full, makes more full 
@@ -174,7 +174,7 @@ gint thbuf_static_produce (thbuf_static_t *buf, void *p)
    //LOG ("produced to %d", buf->produce_pos);
    buf->produce_pos = (buf->produce_pos + 1) % (THBUF_SIZE);
    //LOG ("added %p size %d to %d", buf->buf[pos], buf->chunk_size[pos], pos);
-   ret = buf->full->count - 1;
+   ret = buf->full->count + 1;
    g_static_mutex_unlock (buf->mutex);
 
    // perform a v operation on full, makes more full 

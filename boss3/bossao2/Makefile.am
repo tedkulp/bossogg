@@ -23,7 +23,7 @@ if SHOUT_OPT
 USE_SHOUT=shout.c
 endif
 
-CFLAGS+= -Wall -O0 -ggdb -pthread -Wno-import -fPIC -Iinclude `pkg-config glib-2.0 --cflags`
+CFLAGS+= -Wall -ggdb -pthread -Wno-import -fPIC -Iinclude `pkg-config glib-2.0 --cflags`
 LDFLAGS += `pkg-config glib-2.0 gthread-2.0 gmodule-2.0 --libs`
 
 python_PYTHON=__init__.py bossao.py

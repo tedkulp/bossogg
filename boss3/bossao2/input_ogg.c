@@ -162,6 +162,7 @@ gint _input_close (song_s *song)
    LOG ("TODO: is this leaking files?");
 
    song_free (song);
+   g_free (p_ogg);
    
    return 0;
 }
