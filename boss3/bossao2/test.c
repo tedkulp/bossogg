@@ -47,10 +47,10 @@ static gpointer producer (gpointer p)
       //thbuf_produce (thbuf, chunk, size, pos);
       //LOG ("in chunk is %d %p", size, chunk);
       thbuf_produce (thbuf, chunk, size, prod_pos);
-      if (chunk == NULL) {
-	 LOG ("got a null chunk, ending thread");
-	 g_thread_exit (0);
-      }
+      //if (chunk == NULL) {
+      // LOG ("got a null chunk, ending thread");
+      // g_thread_exit (0);
+      //}
       //LOG ("done producing");
       /* uncomment next line to have the producer play audio (single-threaded) */
       //pos++;
@@ -89,10 +89,10 @@ static gpointer consumer (gpointer p)
       g_mutex_unlock (cons_pause_mutex);
       //LOG ("done consuming");
       chunk = (gchar *)data;
-      if (chunk == NULL) {
-	 LOG ("got a null chunk, ending thread");
-	 g_thread_exit (0);
-      }
+      //if (chunk == NULL) {
+      // LOG ("got a null chunk, ending thread");
+      // g_thread_exit (0);
+      //}
       /* comment this next line if you want the producer to play audio */
       //LOG ("out chunk is %d %p", size, chunk);
       output_plugin_write_chunk_all (NULL, chunk, size);
