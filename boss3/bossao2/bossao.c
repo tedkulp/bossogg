@@ -41,8 +41,6 @@ static thbuf_sem_t *eof_sem;
 static thbuf_t *thbuf;
 static GMutex *pause_mutex, *produce_mutex;
 static GThread *producer, *consumer;
-static gint producer_pos;
-static gint consumer_pos;
 static gint paused = 1;
 static gint stopped = 1;
 static gint quit;
@@ -100,7 +98,7 @@ static gpointer producer_thread (gpointer p)
       cur_chunk->eof = eof;
       if (quit) {
 	 g_usleep (100000);
-	 thbuf_produce (thbuf, cur_chunk, producer_pos);
+	 thbuf_produce (thbuf, cur_chunk);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
@@ -108,9 +106,7 @@ static gpointer producer_thread (gpointer p)
 	 LOG ("got a NULL chunk... eof %d", cur_chunk->eof);
 	 //g_free (cur_chunk);
 	 g_mutex_lock (produce_mutex);
-	 thbuf_produce (thbuf, cur_chunk, producer_pos);
-	 producer_pos++;
-	 producer_pos %= THBUF_SIZE;
+	 thbuf_produce (thbuf, cur_chunk);
 	 g_mutex_unlock (produce_mutex);
 	 if (!cur_chunk->eof) {
 	    g_usleep (10000);
@@ -119,9 +115,7 @@ static gpointer producer_thread (gpointer p)
       }
       //LOG ("producing");
       //g_mutex_lock (produce_mutex);
-      thbuf_produce (thbuf, cur_chunk, producer_pos);
-      producer_pos++;
-      producer_pos %= THBUF_SIZE;
+      thbuf_produce (thbuf, cur_chunk);
       //g_mutex_unlock (produce_mutex);
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
@@ -131,9 +125,6 @@ static gpointer producer_thread (gpointer p)
 
       last_sample_num = sample_num;
       
-      if (producer_pos == 0) {
-	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
-      }
       //g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
@@ -154,11 +145,9 @@ static gpointer consumer_thread (gpointer p)
    
    while (1) {
       //LOG ("consuming");
-      g_mutex_lock (pause_mutex);
-      chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
-      consumer_pos++;
-      consumer_pos %= THBUF_SIZE;
-      g_mutex_unlock (pause_mutex);
+      //g_mutex_lock (pause_mutex);
+      chunk = (chunk_s *)thbuf_consume (thbuf);
+      //g_mutex_unlock (pause_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
 	 g_usleep (100000);
@@ -188,9 +177,6 @@ static gpointer consumer_thread (gpointer p)
 	 continue;
       }
 
-      if (consumer_pos == 0) {
-	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
-      }       
       //LOG ("about to play %p of %d size", chunk->chunk, chunk->size);
       g_mutex_lock (pause_mutex);
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
@@ -202,7 +188,7 @@ static gpointer consumer_thread (gpointer p)
       //g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
-	 thbuf_consume (thbuf, consumer_pos);
+	 thbuf_consume (thbuf);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
@@ -279,8 +265,6 @@ void bossao_stop (void)
    LOG ("cleared");
    input_close ();
    LOG ("closed");
-   consumer_pos = 0;
-   producer_pos = 0;
 }
 
 /* allocate the song, get the plugins ready */

@@ -27,6 +27,8 @@ typedef struct {
 
 typedef struct {
    gint size;
+   gint produce_pos;
+   gint consume_pos;
    void **buf;
    GMutex *mutex;
    thbuf_sem_t *empty, *full;
@@ -39,8 +41,8 @@ void semaphore_free (thbuf_sem_t *semaphore);
 int semaphore_p (thbuf_sem_t *semaphore);
 int semaphore_v (thbuf_sem_t *sempahore);
 
-int thbuf_produce (thbuf_t *buf, void *p, int pos);
-void *thbuf_consume (thbuf_t *buf, int pos);
+int thbuf_produce (thbuf_t *buf, void *p);
+void *thbuf_consume (thbuf_t *buf);
 void thbuf_clear (thbuf_t *buf);
 
 thbuf_t *thbuf_new (size_t size);

@@ -90,14 +90,15 @@ int semaphore_v (thbuf_sem_t *sem)
 /* production function
    adds p the the thbuf
    adds size to the size array */
-int thbuf_produce (thbuf_t *buf, void *p, gint pos)
+int thbuf_produce (thbuf_t *buf, void *p)
 {
    // perform a p operation on empty, makes less empty 
    semaphore_p (buf->empty);
 
    // critical section, add the data to the thbuf 
    g_mutex_lock (buf->mutex);
-   buf->buf[pos % buf->size] = p;
+   buf->buf[buf->produce_pos] = p;
+   buf->produce_pos = (buf->produce_pos + 1) % THBUF_SIZE;
    //LOG ("added %p size %d to %d", buf->buf[pos], buf->chunk_size[pos], pos);
    g_mutex_unlock (buf->mutex);
 
@@ -110,15 +111,16 @@ int thbuf_produce (thbuf_t *buf, void *p, gint pos)
 /* consumption function
    returns p that was added
    size is returned to be the size associated with p */
-void *thbuf_consume (thbuf_t *buf, gint pos)
+void *thbuf_consume (thbuf_t *buf)
 {
    // perform a p operation on full, makes less full 
    semaphore_p (buf->full);
 
    //critical section, remove the data from the thbuf 
    g_mutex_lock (buf->mutex);
-   void *ret = buf->buf[pos % buf->size];
-   buf->buf[pos % buf->size] = NULL;
+   void *ret = buf->buf[buf->consume_pos];
+   buf->buf[buf->consume_pos] = NULL;
+   buf->consume_pos = (buf->consume_pos + 1) % THBUF_SIZE;
    //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);
    g_mutex_unlock (buf->mutex);
 
@@ -131,8 +133,7 @@ void *thbuf_consume (thbuf_t *buf, gint pos)
 /* resets a thbuf (frees all data ps) */
 void thbuf_clear (thbuf_t *buf)
 {
-   gint i, size;
-   void *this;
+   gint i;
 
    g_mutex_lock (buf->mutex);
 
@@ -141,8 +142,10 @@ void thbuf_clear (thbuf_t *buf)
 	 g_free (buf->buf[i]);
       buf->buf[i] = NULL;
    }
-   buf->empty->count = buf->size - 1;
-   buf->full->count = 1;
+   buf->empty->count = buf->size;
+   buf->full->count = 0;
+   buf->produce_pos = 0;
+   buf->consume_pos = 0;
 
    g_mutex_unlock (buf->mutex);
 }
@@ -168,6 +171,8 @@ thbuf_t *thbuf_new (size_t size)
    buf->mutex = g_mutex_new ();
    buf->empty = semaphore_new (size);
    buf->full = semaphore_new (0);
+   buf->produce_pos = 0;
+   buf->consume_pos = 0;
   
    return buf;
 }
