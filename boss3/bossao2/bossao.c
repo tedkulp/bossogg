@@ -65,6 +65,7 @@ static gpointer producer_thread (gpointer p)
    guchar *chunk;
    chunk_s *cur_chunk;
    gint64 sample_num;
+   gint64 last_sample_num = -1;
    gchar eof = 0;
    gchar *filename;
    gchar *last_filename = NULL;
@@ -84,9 +85,11 @@ static gpointer producer_thread (gpointer p)
       cur_chunk->sample_num = sample_num;
 
       if (eof) {
-	 if (filename == last_filename) {
+	 if (last_sample_num == sample_num)
 	    eof = 0;
-	 } else {
+	 if (filename == last_filename)
+	    eof = 0;
+	 else {
 	    filename = last_filename;
 	 }
       }
@@ -112,6 +115,9 @@ static gpointer producer_thread (gpointer p)
       //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
       producer_pos %= THBUF_SIZE;
+
+      last_sample_num = sample_num;
+      
       if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
       }
