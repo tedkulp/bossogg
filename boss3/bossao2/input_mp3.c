@@ -254,10 +254,13 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *e
 
    if (mp3_read (song, buffer, &buf_size, sample_num) == DECODE_BREAK) {
       //song->finished = 1;
+      private_mp3_s *mp3 = (private_mp3_s *)song->private;
       LOG ("setting eof...");
       *eof = 1;
-      g_free (buffer);
-      return NULL;
+      *size = buf_size;
+      *sample_num = mp3->samples_total;
+      //g_free (buffer);
+      return buffer;
    } else
       eof = 0;
    
