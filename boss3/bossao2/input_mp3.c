@@ -181,7 +181,7 @@ static int mp3_decode_frame (void)
    return DECODE_OK;
 }
 
-static int mp3_read (song_s *song, char *buffer)
+static int mp3_read (song_s *song, char *buffer, int *size)
 {
    static int i;
    static int ret;
@@ -208,7 +208,7 @@ static int mp3_read (song_s *song, char *buffer)
 	 *(out_ptr++) = sample >> 8;
       }
 
-      if (out_ptr == out_buf_end) {
+      if (out_ptr == buffer2 + mp3_synth.pcm.length * 4) {
 	 memcpy (buffer, buffer2, BUF_SIZE);
 	 //output_plugin_write_chunk_all (NULL, buffer, BUF_SIZE);
 	 out_ptr = buffer2;
@@ -218,18 +218,20 @@ static int mp3_read (song_s *song, char *buffer)
 
    while ((ret = mp3_decode_frame ()) == DECODE_CONT)
       ;
-  
+
+   *size = mp3_synth.pcm.length * 4;
    return ret;
 }
 
 char *input_play_chunk (song_s *song, gint *size)
 {
    gchar *buffer = (gchar *)g_malloc (BUF_SIZE);
+   gint buf_size;
 
-   if (mp3_read (song, buffer) == DECODE_BREAK)
+   if (mp3_read (song, buffer, &buf_size) == DECODE_BREAK)
       return NULL;
-
-   *size = BUF_SIZE;
+   //output_plugin_write_chunk_all (NULL, buffer, buf_size);
+   *size = buf_size;
    
    return buffer;
 }

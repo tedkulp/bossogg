@@ -41,10 +41,10 @@ static gpointer producer (gpointer p)
 	 exit (0);
       }
       //LOG ("producing");
+      //output_plugin_write_chunk_all (NULL, chunk, size);
       thbuf_produce (thbuf, chunk, size, pos);
       //LOG ("done producing");
       /* uncomment next line to have the producer play audio (single-threaded) */
-      //output_plugin_write_chunk_all (NULL, chunk, size);
       pos++;
       if (pos >= THBUF_SIZE) {
 	 LOG ("producer thread wrapped");
