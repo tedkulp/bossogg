@@ -174,7 +174,7 @@ int main (int argc, char *argv[])
    sleep (secs_to_sleep);
    LOG ("clearing");
    //g_mutex_lock (prod_pause_mutex);
-   //g_mutex_lock (cons_pause_mutex);
+   g_mutex_lock (cons_pause_mutex);
    LOG ("about the thbuf_clear");
    thbuf_clear (thbuf);
    prod_pos = 0;
@@ -192,8 +192,8 @@ int main (int argc, char *argv[])
    input_open (song, argv[2]);
    g_usleep (100000);
    //g_mutex_unlock (prod_pause_mutex);
-   //g_mutex_unlock (cons_pause_mutex);
-   sleep (secs_to_sleep);
+   g_mutex_unlock (cons_pause_mutex);
+   //sleep (secs_to_sleep);
    
 
    LOG ("joining..");
