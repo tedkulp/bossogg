@@ -96,7 +96,7 @@ static gpointer producer_thread (gpointer p)
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
       }
       g_mutex_unlock (produce_mutex);
-      g_usleep (100);
+      g_usleep (0);
    }
 
    return NULL;
@@ -108,6 +108,7 @@ static gpointer consumer_thread (gpointer p)
    gint64 last_sample_num = -1;
 
    while (1) {
+      g_mutex_lock (pause_mutex);
       if (last_sample_num == input_plugin_samples_total ()) {
 	 LOG ("Same sample num twice, end of song?");
 	 input_plugin_set_end_of_file ();
@@ -115,10 +116,10 @@ static gpointer consumer_thread (gpointer p)
 	 consumer_pos++;
 	 consumer_pos %= THBUF_SIZE;
 	 LOG ("consumed after end");
+	 g_mutex_unlock (pause_mutex);
 	 g_usleep (10000);
 	 continue;
       }
-      g_mutex_lock (pause_mutex);
       //LOG ("consuming");
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
       consumer_pos++;
@@ -147,7 +148,7 @@ static gpointer consumer_thread (gpointer p)
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
-      //g_usleep (0);
+      g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
 	 thbuf_consume (thbuf, consumer_pos);
