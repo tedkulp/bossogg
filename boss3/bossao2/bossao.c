@@ -39,7 +39,7 @@ typedef struct chunk_t {
 static thbuf_sem_t *eof_sem;
 
 static thbuf_t *thbuf;
-static GMutex *pause_mutex;// *produce_mutex;
+static GMutex *pause_mutex, *produce_mutex;
 static GThread *producer, *consumer;
 static gint paused = 1;
 static gint stopped = 1;
@@ -103,9 +103,10 @@ static gpointer producer_thread (gpointer p)
 	 g_thread_exit (NULL);
       }
       //LOG ("producing");
-      //g_mutex_lock (produce_mutex);
+      g_mutex_lock (produce_mutex);
       thbuf_produce (thbuf, cur_chunk);
-      //g_mutex_unlock (produce_mutex);
+      g_mutex_unlock (produce_mutex);
+      //g_usleep (0);
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
 	 semaphore_p (eof_sem);
@@ -134,9 +135,9 @@ static gpointer consumer_thread (gpointer p)
    
    while (1) {
       //LOG ("consuming");
-      //g_mutex_lock (pause_mutex);
+      g_mutex_lock (pause_mutex);
       chunk = (chunk_s *)thbuf_consume (thbuf, &count);
-      //g_mutex_unlock (pause_mutex);
+      g_mutex_unlock (pause_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
 	 g_usleep (100000);
@@ -168,14 +169,14 @@ static gpointer consumer_thread (gpointer p)
 
       //LOG ("about to play %p of %d size", chunk->chunk, chunk->size);
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
-      g_mutex_lock (pause_mutex);
+      //g_mutex_lock (pause_mutex);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
-      g_mutex_unlock (pause_mutex);
+      //g_mutex_unlock (pause_mutex);
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
       // give up the scheduler
-      g_usleep (0);
+      //g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
 	 thbuf_consume (thbuf, &count);
@@ -237,7 +238,7 @@ void bossao_stop (void)
 {
    LOG ("in stop");
    if (stopped == 0) {
-      //g_mutex_lock (produce_mutex);
+      g_mutex_lock (produce_mutex);
       LOG ("locked produce mutex");
       stopped = 1;
    } else {
@@ -269,7 +270,7 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
    output_plugin_open_all (cfgparser);
 
    pause_mutex = g_mutex_new ();
-   //produce_mutex = g_mutex_new ();
+   produce_mutex = g_mutex_new ();
    thbuf = thbuf_new (THBUF_SIZE);
 
    if (filename != NULL)
@@ -286,7 +287,7 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
       LOG ("Problem creating consumer thread");
       exit (-1);
    }
-   
+
    return;
 }
 
@@ -315,7 +316,7 @@ void bossao_free (void)
    g_mutex_free (pause_mutex);
    LOG ("pause mutex freed");
    //g_mutex_lock (produce_mutex);
-   //g_mutex_free (produce_mutex);
+   g_mutex_free (produce_mutex);
    LOG ("produce mutex freed");
    thbuf_free (thbuf);
    LOG ("thbuf freed");
@@ -328,7 +329,7 @@ gint bossao_play (gchar *filename)
    input_open (plugin, filename);
    stopped = 0;
    semaphore_v (eof_sem);
-   //g_mutex_unlock (produce_mutex);
+   g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
    g_usleep (100000);
    paused = 0;

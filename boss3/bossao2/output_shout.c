@@ -109,6 +109,8 @@ static void ready_encoder (void)
    if (title != NULL)
       g_free (title);
 
+   LOG ("encoder ready");
+   
    return;
 }
 
@@ -119,7 +121,7 @@ gint output_open (PyObject *cfgparser)
 
    gchar *host, *user, *password, *mount;
    int port;
-
+   
    if (cfgparser == NULL) {
       LOG ("Using shout defaults");
       host = strdup ("127.0.0.1");
@@ -202,7 +204,7 @@ gint output_open (PyObject *cfgparser)
    g_free (user);
    g_free (password);
    g_free (mount);
-
+   
    ready_encoder ();
 
    return 0;
@@ -230,12 +232,12 @@ gint output_write_chunk (gchar *buffer, gint size)
 
    float **vorbbuf = vorbis_analysis_buffer (&vd, size / 4);
    samples_in_page += size / 4;
-  
+
    for (i = 0; i < size / 4; i++) {
       vorbbuf[0][i] = ((buf[i * 4 + 1] << 8) | (0x00ff&(gint)buf[i * 4])) / 32768.f;
       vorbbuf[1][i] = ((buf[i * 4 + 3] << 8) | (0x00ff&(gint)buf[i * 4 + 2])) / 32768.f;
    }
-  
+
    vorbis_analysis_wrote (&vd, size / 4);
 
    while ((ret = vorbis_analysis_blockout (&vd, &vb)) == 1) {
@@ -244,7 +246,6 @@ gint output_write_chunk (gchar *buffer, gint size)
 
       while (vorbis_bitrate_flushpacket (&vd, &op)) {
 	 ogg_stream_packetin (&os, &op);
-
 	 while (!eos) {
 	    if (samples_in_page > rate * 2) {
 	       result = ogg_stream_flush (&os, &og);
@@ -263,7 +264,7 @@ gint output_write_chunk (gchar *buffer, gint size)
 	 }
       }
    }
-   
+
    return 0;
 }
 
