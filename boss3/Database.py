@@ -404,6 +404,8 @@ class Database:
 			SQL += "where songid = %d" % theid
 		elif idtype == "playlistid":
 			SQL += ", playlistdata p where p.songid = s.songid and p.playlistid = %d order by p.indexid" % theid
+		elif idtype == "genreid":
+			SQL += "INNER JOIN genre_data gd ON s.songid = gd.songid WHERE gd.genreid = %d ORDER BY s.songid" % theid
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)

@@ -547,13 +547,18 @@ class Load:
 		"""Convienence function for calling doQueueAdd()"""
 		return self.doQueueAdd("playlistid", theid, replace, userid=userid)
 
+	def genre(self, theid, replace=False, userid=-1):
+		"""Convienence function for calling doQueueAdd()"""
+		return self.doQueueAdd("genreid", theid, replace, userid=userid)
+
 	def doQueueAdd(self, idtype, theid, replace=False, userid=-1):
 		"""
 		Grab songids from the database and put them into the
 		current player thread's queue.
 		
 		Parameters:
-		* idtypes can be: "songid", "albumid", "artistid", or "playlistid".
+		* idtypes can be: "songid", "albumid", "artistid", "playlistid", or
+		  "genreid"
 		* theid is an integer id value.
 		* replace is a boolean that, if true, will clear the queue before
 		  it adds the new songs.

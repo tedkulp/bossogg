@@ -83,6 +83,19 @@ class Load:
 	Returns:
 	* int (always 1)
 
+
+	load("genre"): Loads the songs in the given genre into the
+	queue.  If emptyqueue is given (1 as int or any string), it will
+	clear out the queue first before adding the song.  Will return a
+	fault if the incorrect number of parameters are given.
+
+	Parameters:
+	* genreid - int
+	* emptyqueue - int, string or boolean(optional)
+
+	Returns:
+	* int (always 1)
+
 	
 	load("move"): Moves a song from one index position to a new index
 	position, displacing the song that is currently there and moving
@@ -178,6 +191,17 @@ class Load:
 						elif isinstance(args[1], types.IntType) and args[1] == 1:
 							arg1 = True
 					return cmdint.load.doQueueAdd("playlistid", args[0], arg1)
+				else:
+					return xmlrpclib.Fault(1, "Invalid number of parameters given")
+			elif (cmd == "genre"):
+				if len(args) > 0:
+					arg1 = False
+					if len(args) > 1:
+						if isinstance(args[1], types.StringType):
+							arg1 = True
+						elif isinstance(args[1], types.IntType) and args[1] == 1:
+							arg1 = True
+					return cmdint.load.doQueueAdd("genreid", args[0], arg1)
 				else:
 					return xmlrpclib.Fault(1, "Invalid number of parameters given")
 			elif (cmd == "move"):
