@@ -112,7 +112,7 @@ static gpointer producer_thread (gpointer p)
 	 g_thread_exit (NULL);
       }
       if (chunk == NULL) {
-	 //LOG ("got a NULL chunk...");
+	 LOG ("got a NULL chunk...");
 	 //g_free (cur_chunk);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
 	 producer_pos++;
@@ -133,7 +133,7 @@ static gpointer producer_thread (gpointer p)
       if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
       }
-      //g_usleep (0);
+      g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
 	 LOG ("stopping thread");
