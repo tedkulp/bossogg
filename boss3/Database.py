@@ -68,13 +68,13 @@ class Database:
 			f=f.f_back
 			return os.path.basename(f.f_code.co_filename), f.f_lineno
 
-		def execute(self, SQL, *args):
+		def execute(self, SQL, *args, **kwargs):
 			needlock=0
 
-			if len(SQL)>0 and SQL.split()[0].lower() in ["delete", "update", "insert", "commit"]:
+			if len(SQL)>0 and SQL.split()[0].lower() in ["delete", "update", "insert", "commit"] and not self.nolock:
 				needlock=1
 
-			if needlock and not self.nolock:
+			if needlock:
 				sql_lock.acquire()
 				log.debug("lock", "Acquire lock for database writes", stack=1)
 			try:
@@ -82,12 +82,13 @@ class Database:
 				sqlite.Cursor.execute(self, SQL, *args)
 			except:
 				log.exception("SQL ERROR")
-				if needlock and not self.nolock:
-					sql_lock.release()
-					log.debug("lock", "Release lock for database writes", stack=1)
-				raise
+				if "raise_except" in kwargs and kwargs["raise_except"] == 1:
+					if needlock:
+						sql_lock.release()
+						log.debug("lock", "Release lock for database writes", stack=1)
+					raise
 
-			if needlock and not self.nolock:
+			if needlock:
 				sql_lock.release()
 				log.debug("lock", "Release lock for database writes", stack=1)
 
