@@ -559,14 +559,36 @@ class Database:
 		self.genrecache = {}
 		self.artistcache = {}
 		self.albumcache = {}
+		self.i_songcache = {}
 		#self.cursong = session['xinelib'].createSong()
 		#self.cursong.songInit()
 		self.dblocked = True
 		self.importcon = self.conn.cursor()
 		self.importcon.nolock=1
+		cursor=self.importcon
+		SQL = "select artistname,artistid from artists"
+		log.debug("sqlquery", SQL)
+		cursor.execute(SQL)		
+		for row in cursor.fetchall():
+			log.debug("sqlresult", "%s", row)
+			self.artistcache[row[0]] = int(row[1])
+		SQL = "select artistid,albumname,albumid from albums"
+		log.debug("sqlquery", SQL)
+		cursor.execute(SQL)
+		for row in cursor.fetchall():
+			log.debug("sqlresult", "%s", row)
+			self.albumcache[str(row[0])+row[1]] = int(row[2])
+
+		SQL = "select filename,songid from songs"
+		log.debug("sqlquery", SQL)
+		cursor.execute(SQL)
+		for row in cursor.fetchall():
+			log.debug("sqlresult", "%s", row)
+			self.i_songcache[row[0]] = int(row[1])
+			
 		SQL = "begin transaction"
 		log.debug("sqlquery", "TRANS: %s", SQL)
-		self.importcon.execute(SQL)
+		cursor.execute(SQL)
 
 	def importEnd(self):
 		log.debug("funcs", "Database.importEnd()")
@@ -736,12 +758,12 @@ class Database:
 		cursor = self.importcon
 		#See if this artist is already in the cache
 		if artistname not in self.artistcache:
-			SQL = "select artistid from artists where artistname = %s"
-			log.debug("sqlquery", SQL, artistname)
-			cursor.execute(SQL, artistname)
-			for row in cursor.fetchall():
-				log.debug("sqlresult", "Row: %s", row)
-				aid = row['artistid']
+			#SQL = "select artistid from artists where artistname = %s"
+			#log.debug("sqlquery", SQL, artistname)
+			#cursor.execute(SQL, artistname)
+			#for row in cursor.fetchall():
+			#	log.debug("sqlresult", "Row: %s", row)
+			#	aid = row['artistid']
 			now = time.time()
 			try:
 				metaartist = int(metaartist)
@@ -753,14 +775,7 @@ class Database:
 				log.debug("sqlquery", SQL, artistname, metaartist, now, now)
 				cursor.execute(SQL, artistname, int(metaartist), now, now)
 				self.getartiststatus = True
-				#log.debug("sql", "Last row id is %d", cursor.lastrowid)
-				SQL = "select artistid from artists where artistname = %s"
-				log.debug("sqlquery", SQL, artistname)
-				cursor.execute(SQL, artistname)
-				for row in cursor.fetchall():
-					log.debug("sqlresult", "Row: %s", row)
-					aid = row['artistid']
-				log.debug("sql", "aid is %d", aid)
+				aid = cursor.lastrowid
 			#Not needed until we have genres and/or metaartists
 			else:
 				SQL = "update artists set metaflag = %s, modified_date = %s where artistid = %s"
@@ -779,24 +794,19 @@ class Database:
 		cursor = self.importcon
 		#See if this album is already in the cache
 		if str(str(artistid) + albumname) not in self.albumcache:
-			SQL = "select albumid from albums where albumname = %s"
-			log.debug("sqlquery", SQL, albumname)
-			cursor.execute(SQL, albumname)
-			for row in cursor.fetchall():
-				log.debug("sqlresult", "Row: %s", row)
-				tid = row['albumid']
+			#SQL = "select albumid from albums where albumname = %s"
+			#log.debug("sqlquery", SQL, albumname)
+			#cursor.execute(SQL, albumname)
+			#for row in cursor.fetchall():
+			#	log.debug("sqlresult", "Row: %s", row)
+			#	tid = row['albumid']
 			now=time.time()
 			if tid == -1:
 				SQL = "insert into albums (albumname, artistid, year, create_date, modified_date) VALUES (%s, %s, %s, %s, %s)"
 				log.debug("sqlquery", SQL, albumname, artistid, year, now, now)
 				cursor.execute(SQL, albumname, artistid, year, now, now)
 				self.getalbumstatus = True
-				SQL = "select albumid from albums where albumname = %s"
-				log.debug("sqlquery", SQL, albumname)
-				cursor.execute(SQL, albumname)
-				for row in cursor.fetchall():
-					log.debug("sqlresult", "Row: %s", row)
-					tid = row['albumid']
+				tid = cursor.lastrowid
 			#TODO: Check to see if there are changes
 			else:
 				#TODO: Have to add genre code
@@ -815,12 +825,12 @@ class Database:
 		songname = string.strip(songname)
 		filename = string.strip(filename)
 		cursor = self.importcon
-		SQL = "select songid from songs where filename = %s"
-		log.debug("sqlquery", SQL, filename)
-		cursor.execute(SQL, filename)
-		for row in cursor.fetchall():
-			log.debug("sqlresult", "Row: %s", row)
-			sid = row['songid']
+		#SQL = "select songid from songs where filename = %s"
+		#log.debug("sqlquery", SQL, filename)
+		#cursor.execute(SQL, filename)
+		#for row in cursor.fetchall():
+		#	log.debug("sqlresult", "Row: %s", row)
+		#	sid = row['songid']
 
 		#metadata = self.cursong.getMetaData()
 		metadata = {}
@@ -849,17 +859,13 @@ class Database:
 		albumid = int(albumid)
 		year = int(year)
 
-		if sid == -1:
+		if filename not in self.i_songcache:
 			SQL = "insert into songs (songname, artistid, albumid, year, tracknum, filename, filesize, songlength, bitrate, metaartistid, create_date, modified_date, timesplayed, weight, flags) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0)"
 			log.debug("sqlquery", SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, metadata['bitrate'], metaartistid, now, now)
 			cursor.execute(SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, metadata['bitrate'], metaartistid, now, now)
 			self.getalbumstatus = True
-			SQL = "select songid from songs where filename = %s"
-			log.debug("sqlquery", SQL, filename)
-			cursor.execute(SQL, filename)
-			for row in cursor.fetchall():
-				log.debug("sqlresult", "Row: %s", row)
-				sid = row['songid']
+			sid = cursor.lastrowid
+			self.i_songcache[filename] = sid
 		#TODO: Check to see if there are changes
 		else:
 			SQL = "update songs set modified_date = %s, songname = %s, artistid = %s, albumid = %s, year = %s, tracknum = %s, filename = %s, songlength = %s, bitrate = %s, metaartistid = %s, filesize = %s where songid = %s"
