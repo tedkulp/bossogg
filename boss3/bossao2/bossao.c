@@ -150,14 +150,16 @@ static gpointer consumer_thread (gpointer p)
 	 if (!chunk->eof)
 	    continue;
       }
-      consumer_pos++;
-      consumer_pos %= THBUF_SIZE;
       if (chunk->eof) {
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
+	 consumer_pos++;
+	 consumer_pos %= THBUF_SIZE;
 	 g_usleep (100000);
 	 continue;
       }
+      consumer_pos++;
+      consumer_pos %= THBUF_SIZE;
 
       if (consumer_pos == 0) {
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
