@@ -26,7 +26,7 @@
 
 thbuf_t *thbuf;
 
-#define THBUF_SIZE 1024
+#define THBUF_SIZE 256
 
 static gpointer producer (gpointer p)
 {
@@ -36,7 +36,9 @@ static gpointer producer (gpointer p)
    while (1) {
       int size;
       gchar *chunk = input_play_chunk (NULL, &size);
+      LOG ("producing");
       thbuf_produce (thbuf, chunk, size, pos);
+      //LOG ("done producing");
       /* uncomment next line to have the producer play audio (single-threaded) */
       //output_plugin_write_chunk_all (NULL, chunk, size);
       pos++;
@@ -61,7 +63,9 @@ static gpointer consumer (gpointer p)
 
    while (1) {
       gchar *chunk;
+      //LOG ("consuming");
       data = thbuf_consume (thbuf, &size, pos);
+      //LOG ("done consuming");
       chunk = (gchar *)data;
       /* comment this next line if you want the producer to play audio */
       output_plugin_write_chunk_all (NULL, chunk, size);
@@ -118,6 +122,27 @@ int main (int argc, char *argv[])
       LOG ("Problem creating consumer thread");
       exit (-6);
    }
+
+   while (1)
+      sleep (1);
+   
+   sleep (2);
+   thbuf_clear (thbuf);
+   LOG ("cleared");
+   sleep (2);
+   input_close (song);
+   input_open (song, "/home/adam/test.ogg");
+
+   LOG ("about to do it...");
+   
+   g_mutex_lock (thbuf->empty->mutex);
+   g_cond_broadcast (thbuf->empty->cond);
+   g_mutex_unlock (thbuf->empty->mutex);
+   g_mutex_lock (thbuf->full->mutex);
+   g_cond_broadcast (thbuf->full->cond);
+   g_mutex_unlock (thbuf->full->mutex);
+
+   LOG ("joining..");
    
    g_thread_join (producer_thread);
    g_thread_join (consumer_thread);
