@@ -125,11 +125,6 @@ static gpointer consumer_thread (gpointer p)
 	    g_usleep (10000);
 	    continue;
 	 }
-	 if (chunk->eof) {
-	    LOG ("got EOF");
-	    g_usleep (100000);
-	    continue;
-	 }
       }
       //LOG ("consuming");
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
@@ -140,15 +135,15 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (100000);
 	 continue;
       }
+      if (chunk->eof) {
+	 LOG ("got EOF");
+	 g_usleep (100000);
+	 continue;
+      }
       if (chunk->chunk == NULL) {
 	 LOG ("got a NULL chunk %d %d", (gint)last_sample_num, (gint)input_plugin_samples_total ());
 	 last_sample_num = chunk->sample_num;
 	 g_usleep (10000);
-	 continue;
-      }
-      if (chunk->eof) {
-	 LOG ("got EOF");
-	 g_usleep (100000);
 	 continue;
       }
 
