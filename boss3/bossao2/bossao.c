@@ -32,6 +32,7 @@ typedef struct chunk_t {
    gint sample_num;
    gint size;
    gchar eof;
+   GMutex *mutex;
 } chunk_s;
 
 //static chunk_s chunks[THBUF_SIZE];
@@ -59,14 +60,16 @@ gpointer get_symbol (GModule *lib, gchar *name)
    return symbol;
 }
 
-static void buffer_free_callback (void *p)
+static void buffer_free_callback (chunk_s *chunk)
 {
-   chunk_s *chunk = (chunk_s *)p;
    if (chunk) {
+      g_mutex_lock (chunk->mutex);
       if (chunk->chunk) {
 	 g_free (chunk->chunk);
 	 chunk->chunk = NULL;
       }
+      g_mutex_unlock (chunk->mutex);
+      g_mutex_free (chunk->mutex);
       g_free (chunk);
       chunk = NULL;
    }
@@ -76,11 +79,10 @@ static gpointer producer_thread (gpointer p)
 {
    gint size;
    guchar *chunk;
-   chunk_s *cur_chunk;
+   chunk_s *cur_chunk, *old_chunk;
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
    gchar eof = -1;
-   void *buf_p = NULL;
    
    g_usleep (10000);
 
@@ -98,13 +100,15 @@ static gpointer producer_thread (gpointer p)
       cur_chunk->chunk = chunk;
       cur_chunk->size = size;
       cur_chunk->sample_num = sample_num;
-
+      cur_chunk->mutex = g_mutex_new ();
+      
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk: %lld %lld", last_sample_num, sample_num);
 	 if (eof) {
 	    LOG ("was eof...");
 	 } else {
-	    g_free (cur_chunk);
+	    //g_free (cur_chunk);
+	    buffer_free_callback (cur_chunk);
 	    g_usleep (10000);
 	    continue;
 	 }
@@ -118,15 +122,16 @@ static gpointer producer_thread (gpointer p)
       }
       //LOG ("producing");
       //g_mutex_lock (produce_mutex);
-      buf_p = (void *)thbuf_produce (thbuf, cur_chunk);
+      old_chunk = (chunk_s *)thbuf_produce (thbuf, cur_chunk);
       //g_mutex_unlock (produce_mutex);
-      buffer_free_callback (buf_p);
+
       //g_usleep (0);
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
 	 semaphore_p (produce_eof_sem);
 	 eof = 0;
-      }
+      } else
+	 buffer_free_callback (old_chunk);
 
       last_sample_num = sample_num;
       /*
@@ -167,6 +172,8 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (10000);
 	 continue;
       }
+      // DO YOU NEED TO MOVE THIS INTO THE THBUF?
+      g_mutex_lock (chunk->mutex);
       g_mutex_unlock (pause_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
@@ -189,6 +196,7 @@ static gpointer consumer_thread (gpointer p)
 	    LOG ("wasn't eof");
 	    semaphore_v (thbuf->empty);
 	    //g_free (chunk);
+	    g_mutex_unlock (chunk->mutex);
 	    continue;
 	 }
       }
@@ -198,6 +206,7 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (10000);
 	 semaphore_v (thbuf->empty);
 	 semaphore_p (consume_eof_sem);
+	 g_mutex_unlock (chunk->mutex);
 	 //g_usleep (10000);
 	 //g_free (chunk);
 	 continue;
@@ -208,6 +217,7 @@ static gpointer consumer_thread (gpointer p)
       //g_mutex_lock (pause_mutex);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
       //semaphore_p (thbuf->full);
+      g_mutex_unlock (chunk->mutex);
       semaphore_v (thbuf->empty);
       //g_mutex_unlock (pause_mutex);
       last_sample_num = chunk->sample_num;
