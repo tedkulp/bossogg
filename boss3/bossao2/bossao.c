@@ -67,16 +67,17 @@ static gpointer producer_thread (gpointer p)
    gint64 sample_num;
    gint64 last_sample_num = -1;
    gchar eof = 0;
-   //gchar *filename;
-   //gchar *last_filename = NULL;
+   gchar eof_once = 0;
+   gchar *filename;
+   gchar *last_filename = NULL;
 
    g_usleep (10000);
    
    while (1) {
       g_mutex_lock (produce_mutex);
-      //filename = input_filename ();
-      //if (last_filename == NULL)
-      // last_filename = input_filename ();
+      filename = input_filename ();
+      if (last_filename == NULL)
+       last_filename = input_filename ();
       chunk = input_play_chunk (&size, &sample_num, &eof);
       g_mutex_unlock (produce_mutex);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
@@ -85,17 +86,23 @@ static gpointer producer_thread (gpointer p)
       cur_chunk->sample_num = sample_num;
 
       if (eof) {
-	 if (last_sample_num == sample_num)
-	    eof = 0;
-	 //if (filename == last_filename)
-	 //  eof = 0;
-	 //else {
-	    //filename = last_filename;
-	 //}
+	 if (last_sample_num == sample_num) {
+	    if (!eof_once) {
+	       eof = 1;
+	       eof_once = 1;
+	    } else
+	       eof = 0;
+	 }
+	 if (filename != last_filename) {
+	    last_filename = filename;
+	    eof_once = 0;
+	 }
       } else {
 	 if (last_sample_num == sample_num)
 	    eof = 1;
       }
+      if (eof || eof_once)
+	 g_usleep (40000);
       cur_chunk->eof = eof;
       
       if (quit) {
