@@ -85,9 +85,7 @@ static gpointer producer_thread (gpointer p)
 	 g_thread_exit (NULL);
       }
       if (chunk == NULL) {
-	 LOG ("got a NULL chunk...");
-	 if (eof)
-	    input_plugin_set_end_of_file ();
+	 //LOG ("got a NULL chunk...");
 	 //g_free (cur_chunk);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
 	 producer_pos++;
@@ -103,7 +101,7 @@ static gpointer producer_thread (gpointer p)
       if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
       }
-      //g_usleep (0);
+      g_usleep (0);
    }
 
    return NULL;
@@ -142,7 +140,7 @@ static gpointer consumer_thread (gpointer p)
       }
       if (chunk->eof) {
 	 LOG ("got EOF");
-	 //input_plugin_set_end_of_file ();
+	 input_plugin_set_end_of_file ();
 	 g_usleep (100000);
 	 continue;
       }
@@ -164,7 +162,7 @@ static gpointer consumer_thread (gpointer p)
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
-      //g_usleep (0);
+      g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
 	 thbuf_consume (thbuf, consumer_pos);
@@ -278,15 +276,22 @@ void bossao_join (void)
 void bossao_free (void)
 {
    quit = 1;
+   LOG ("stopping");
    bossao_stop ();
+   LOG ("stopped");
    bossao_join ();
+   LOG ("joined");
    
    input_plugin_close_all ();
    output_plugin_close_all ();
-
+   LOG ("plugins closed");
+   
    g_mutex_free (pause_mutex);
+   LOG ("pause mutex freed");
    g_mutex_free (produce_mutex);
+   LOG ("produce mutex freed");
    thbuf_free (thbuf);
+   LOG ("thbuf freed");
 }
 
 gint bossao_play (gchar *filename)
