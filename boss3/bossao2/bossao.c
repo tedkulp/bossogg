@@ -66,6 +66,7 @@ static gpointer producer_thread (gpointer p)
    gint64 sample_num;
 
    while (1) {
+      g_mutex_lock (produce_mutex);
       chunk = input_play_chunk (&size, &sample_num);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
       cur_chunk->chunk = chunk;
@@ -74,10 +75,10 @@ static gpointer producer_thread (gpointer p)
       if (quit) {
 	 g_usleep (100000);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
+	 g_mutex_unlock (produce_mutex);
 	 LOG ("stopping thread")
 	 g_thread_exit (NULL);
       }
-      g_mutex_lock (produce_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
