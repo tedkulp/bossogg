@@ -155,8 +155,10 @@ inline gint input_close (void)
    gint ret;
    g_mutex_lock (current_mutex);
    if (current_song != NULL) {
-      ret = current_plugin->input_close (current_song);
-      g_mutex_unlock (current_mutex);
+      if (current_plugin != NULL)
+	 ret = current_plugin->input_close (current_song);
+      else
+	 LOG ("current plugin was NULL!");
       current_song = NULL;
    } else {
       LOG ("already NULL");
@@ -309,6 +311,9 @@ void input_plugin_close (input_plugin_s *plugin)
 static void input_plugin_close_all_helper (gpointer item, gpointer user_data)
 {
    input_plugin_s *plugin = (input_plugin_s *)item;
+   if (plugin == NULL) {
+      LOG ("NULL plugin??");
+   }
    LOG ("Closing module '%s'", plugin->name);
    g_module_close (plugin->lib);
    g_free (plugin);
