@@ -337,7 +337,8 @@ static gint64 get_total_samples (private_mp3_s *mp3)
 
 song_s *_input_open (input_plugin_s *plugin, gchar *filename)
 {
-   int ret;
+   gint ret;
+   gint skip;
    private_mp3_s *p_mp3 = (private_mp3_s *)g_malloc (sizeof (private_mp3_s));
    memset (p_mp3, 0, sizeof (private_mp3_s));
    song_s *song = song_new (plugin, p_mp3);
@@ -354,9 +355,18 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
    }
 
    get_total_samples (p_mp3);
-
-   while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT) {
-      //p_mp3->samples_current += 32 * MAD_NSBSAMPLES(&p_mp3->mp3_frame.header);
+   while (1) {
+      skip = 0;
+      while ((ret = decode_next_frame_header (p_mp3)) == DECODE_CONT)
+	 ;
+      if (ret == DECODE_SKIP)
+	 skip = 1;
+      while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT)
+	 ;
+      if (ret == DECODE_BREAK)
+	 return -1;
+      if (!skip && ret == DECODE_OK)
+	 break;
    }
 
    LOG ("mp3 file '%s' opened", filename);

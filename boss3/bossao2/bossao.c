@@ -88,9 +88,9 @@ static gpointer producer_thread (gpointer p)
 	 //LOG ("got a NULL chunk...");
 	 //g_free (cur_chunk);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
-	 producer_pos++;
-	 producer_pos %= THBUF_SIZE;
-	 g_usleep (10000);
+	 //producer_pos++;
+	 //producer_pos %= THBUF_SIZE;
+	 g_usleep (40000);
 	 continue;
       }
       //LOG ("producing");
@@ -102,6 +102,11 @@ static gpointer producer_thread (gpointer p)
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
       }
       g_usleep (0);
+      if (quit) {
+	 g_usleep (10000);
+	 LOG ("stopping thread");
+	 g_thread_exit (NULL);
+      }
    }
 
    return NULL;
@@ -131,23 +136,26 @@ static gpointer consumer_thread (gpointer p)
       }
       //LOG ("consuming");
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
-      consumer_pos++;
-      consumer_pos %= THBUF_SIZE;
+      //consumer_pos++;
+      //consumer_pos %= THBUF_SIZE;
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
-	 g_usleep (100000);
-	 continue;
-      }
-      if (chunk->eof) {
-	 LOG ("got EOF");
-	 input_plugin_set_end_of_file ();
 	 g_usleep (100000);
 	 continue;
       }
       if (chunk->chunk == NULL) {
 	 LOG ("got a NULL chunk %d %d", (gint)last_sample_num, (gint)input_plugin_samples_total ());
 	 last_sample_num = chunk->sample_num;
-	 g_usleep (10000);
+	 //g_usleep (10000);
+	 if (!chunk->eof)
+	    continue;
+      }
+      consumer_pos++;
+      consumer_pos %= THBUF_SIZE;
+      if (chunk->eof) {
+	 LOG ("got EOF");
+	 input_plugin_set_end_of_file ();
+	 g_usleep (100000);
 	 continue;
       }
 
@@ -165,7 +173,7 @@ static gpointer consumer_thread (gpointer p)
       g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
-	 thbuf_consume (thbuf, consumer_pos);
+	 //thbuf_consume (thbuf, consumer_pos);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
@@ -276,18 +284,21 @@ void bossao_join (void)
 void bossao_free (void)
 {
    quit = 1;
+   g_usleep (100000);
    LOG ("stopping");
    bossao_stop ();
    LOG ("stopped");
-   bossao_join ();
-   LOG ("joined");
+   //bossao_join ();
+   //LOG ("joined");
    
    input_plugin_close_all ();
    output_plugin_close_all ();
    LOG ("plugins closed");
-   
+
+   //g_mutex_lock (pause_mutex);
    g_mutex_free (pause_mutex);
    LOG ("pause mutex freed");
+   //g_mutex_lock (produce_mutex);
    g_mutex_free (produce_mutex);
    LOG ("produce mutex freed");
    thbuf_free (thbuf);
