@@ -587,8 +587,8 @@ class Database:
 		statinfo = os.stat(filename)
 		now = time.time()
 
-		if trackno == -1:
-			trackno = 0
+		if tracknum == -1:
+			tracknum = 0
 
 		if filename not in self.i_songcache:
 			SQL = "insert into songs (songname, artistid, albumid, year, tracknum, filename, filesize, songlength, bitrate, metaartistid, create_date, modified_date, timesplayed, weight, flags) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0)"
