@@ -28,6 +28,7 @@ import string
 import types
 import thread
 import threading
+import mad
 from boss3.metadata import id3
 from boss3.metadata.id3 import getTag
 try:
@@ -62,6 +63,8 @@ class Database:
 	importcon = None
 
 	class _Cursor(sqlite.Cursor):
+		nolock=0
+		
 		def getcaller(self):
 			f=sys._getframe(1)
 			f=f.f_back
@@ -73,7 +76,7 @@ class Database:
 			if len(SQL)>0 and SQL.split()[0].lower() in ["delete", "update", "insert"]:
 				needlock=1
 
-			if needlock:
+			if needlock and not self.nolock:
 				sql_lock.acquire()
 				log.debug("lock", "Acquire lock for database writes at (%s:%d)" % self.getcaller())
 			try:
@@ -81,7 +84,7 @@ class Database:
 			except:
 
 				log.exception("SQL ERROR")
-			if needlock:
+			if needlock and not self.nolock:
 				sql_lock.release()
 				log.debug("lock", "Release lock for database writes at (%s:%d)" % self.getcaller())
 
@@ -560,6 +563,10 @@ class Database:
 		#self.cursong.songInit()
 		self.dblocked = True
 		self.importcon = self.conn.cursor()
+		self.importcon.nolock=1
+		SQL = "begin transaction"
+		log.debug("sqlquery", "TRANS: %s", SQL)
+		self.importcon.execute(SQL)
 
 	def importEnd(self):
 		log.debug("funcs", "Database.importEnd()")
@@ -571,6 +578,9 @@ class Database:
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		#self.conn.commit()
+		SQL = "commit transaction"
+		log.debug("sqlquery", SQL)
+		cursor.execute(SQL);
 		self.dblocked = False
 		log.debug("import", "Import complete, loading song cache (before %d)", len(self.songcache))
 		try:
@@ -582,6 +592,9 @@ class Database:
 	def importCancel(self):
 		log.debug("funcs", "Database.importCancel()")
 		cursor = self.importcon
+		SQL = "rollback transaction"
+		log.debug("sqlquery", SQL)
+		cursor.execute(SQL)
 		#self.conn.rollback()
 		self.dblocked = False
 
@@ -816,14 +829,14 @@ class Database:
 		except:
 			log.debug("import", "No metadata for %s", filename)
 		if "bitrate" not in metadata or "songlength" not in metadata:
-			print "before set filename"
+			#print "before set filename"
 			#self.cursong.songint.filename = filename
-			print "before open"
+			#print "before open"
 			#self.cursong.songOpen()
-			print "before metadata"
+			#print "before metadata"
 			#metadata = self.cursong.getMetaData()
 			#self.cursong.songClose()
-		print "after metadata"
+		#print "after metadata"
 		statinfo = os.stat(filename)
 		songlength = 0
 		if metadata['songlength'] is not None and str(metadata['songlength']) != 'inf':
