@@ -319,26 +319,28 @@ def process_changes(new_files, mod_files, del_files):
 				metadata["filename"] = file
 				additions.append(metadata)
 
-			log.debug("import", "Starting song import %d", time.time())
+		log.debug("import", "Starting song import %d", time.time())
 
-			if not config["noop"]:
-				rpc.db("importstart")
+		if not config["noop"]:
+			rpc.db("importstart")
 
-			while len(additions) > 0:
-				songs = additions[:100]
-				additions = additions[100:]
-				rpc.db("importnewsongs", songs)
-
-			log.debug("import", "Import complete %d", time.time())
-
-			if not config["noop"]:
-				rpc.db("importend")
+		while len(additions) > 0:
+			songs = additions[:100]
+			additions = additions[100:]
+			rpc.db("importnewsongs", songs)
+			
+		log.debug("import", "Import complete %d", time.time())
+		
 					
 			
 		if del_files:
 			display("Deleting files: %d files removed from database" % len(del_files))
 			if not config["noop"]:
 				rpc.db("importdelete", del_files)
+
+		if not config["noop"]:
+			rpc.db("importend")
+
 	except:
 		log.exception("Got exception during processing of data")
 		log.debug("import", "Aborting import. Canceling")

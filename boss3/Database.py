@@ -276,23 +276,33 @@ class Database:
 				result.append({"artistid":row['artistid'],"artistname":row['artistname']})
 		return result
 
-	def listAlbums(self, artistid, anchor=""):
+	def listAlbums(self, artistid="", anchor=""):
 		result = []
 		cursor = self.conn.cursor()
 		#Look for real albums first and stick them at the top of the list
-		SQL = "SELECT albumid, albumname, year FROM albums WHERE artistid = %i " % artistid
+		if len(artistid):
+			SQL = "SELECT albumid, albumname, year FROM albums WHERE artistid = %i " % artistid
+		else:
+			SQL = "SELECT distinct albumid, albumname, year FROM albums WHERE albumname <> 'Singles' "
+	
 		if (anchor != None and anchor != ""):
-			SQL += "AND albumname like '%s%%' " % anchor
+			SQL += "AND albumname like '%s%%' " % anchor.replace("'", "\\'")
 		SQL += "ORDER BY year, lower(albumname) ASC"
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
 			result.append({"albumid":row['albumid'],"albumname":row['albumname'],"albumyear":row['year'],"metaartist":0})
+		if not len(artistid):
+			return result
 		#Now look for metaartist related albums
-		SQL = "SELECT a.albumid, a.albumname, a.year FROM albums a INNER JOIN songs s ON a.albumid = s.albumid WHERE s.metaartistid = %s " % artistid
+		if len(artistid):
+			SQL = "SELECT a.albumid, a.albumname, a.year FROM albums a INNER JOIN songs s ON a.albumid = s.albumid WHERE s.metaartistid = %s " % artistid
+		else:
+			SQL = "SELECT a.albumid, a.albumname, a.year FROM albums a INNER JOIN songs s ON a.albumid = s.albumid "
+
 		if (anchor != None and anchor != ""):
-			SQL += "AND a.albumname like '%s%%' " % anchor
+			SQL += "AND a.albumname like '%s%%' " % anchor.replace("'", "\\'")
 		SQL += "ORDER BY a.year, a.albumname ASC"
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
@@ -549,6 +559,7 @@ class Database:
 #				row['modified_date'] = 
 
 			result.append({"filename":row['filename'],"modifieddate":row['modified_date']})
+		cursor.close()
 		return result
 
 	def getmetadata(self, filename):
@@ -560,7 +571,7 @@ class Database:
 		log.debug("funcs", "Database.importNewSongs()")
 
 		for song in songs:
-			log.debug("import", "Importing song %s", song["filename"])
+			log.debug("import", "Importing song %s as %s", song["filename"], song)
 			genreid = -1
 			if 'genre' in song.keys():
 				genreid = self._getGenre(self.checkBinary(song['genre']))
@@ -569,7 +580,7 @@ class Database:
 			if 'metaartistname' in song.keys():
 				metaartistid = self._getArtist(self.checkBinary(song['metaartistname']),True)
 			albumid = self._getAlbum(self.checkBinary(song['albumname']), artistid, song['year'])
-			songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid,song['year'],metaartistid, song["bitrate"], song["songlength"])
+			songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid=albumid,year=song['year'],metaartistid=metaartistid, bitrate=song["bitrate"], songlength=song["songlength"])
 
 		return True
 
@@ -582,14 +593,10 @@ class Database:
 		cursor = self.import_db["cursor"]
 
 		statinfo = os.stat(filename)
-		if songlength != -1 and str(songlength) != 'inf':
-			songlength = int(songlength)
-		else:
-			songlength = 0
 		now = time.time()
-		artistid = int(artistid)
-		albumid = int(albumid)
-		year = int(year)
+
+		if trackno == -1:
+			trackno = 0
 
 		if filename not in self.i_songcache:
 			SQL = "insert into songs (songname, artistid, albumid, year, tracknum, filename, filesize, songlength, bitrate, metaartistid, create_date, modified_date, timesplayed, weight, flags) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0)"
