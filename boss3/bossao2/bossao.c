@@ -139,6 +139,7 @@ static gpointer consumer_thread (gpointer p)
       if (thbuf_current_size (thbuf))
 	 chunk = (chunk_s *)thbuf_consume (thbuf, &count);
       else {
+	 g_mutex_unlock (pause_mutex);
 	 g_usleep (10000);
 	 continue;
       }
