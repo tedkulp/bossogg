@@ -66,18 +66,32 @@ static gpointer producer_thread (gpointer p)
    chunk_s *cur_chunk;
    gint64 sample_num;
    gchar eof = 0;
+   gchar *filename;
+   gchar *last_filename = NULL;
 
    g_usleep (10000);
    
    while (1) {
       g_mutex_lock (produce_mutex);
+      filename = input_filename ();
+      if (last_filename == NULL)
+	 last_filename = input_filename ();
       chunk = input_play_chunk (&size, &sample_num, &eof);
       g_mutex_unlock (produce_mutex);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
       cur_chunk->chunk = chunk;
       cur_chunk->size = size;
       cur_chunk->sample_num = sample_num;
+
+      if (eof) {
+	 if (filename == last_filename) {
+	    eof = 0;
+	 } else {
+	    filename = last_filename;
+	 }
+      }
       cur_chunk->eof = eof;
+      
       if (quit) {
 	 g_usleep (100000);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
@@ -88,8 +102,8 @@ static gpointer producer_thread (gpointer p)
 	 //LOG ("got a NULL chunk...");
 	 //g_free (cur_chunk);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
-	 //producer_pos++;
-	 //producer_pos %= THBUF_SIZE;
+	 producer_pos++;
+	 producer_pos %= THBUF_SIZE;
 	 g_usleep (40000);
 	 continue;
       }
@@ -123,8 +137,8 @@ static gpointer consumer_thread (gpointer p)
    while (1) {
       //LOG ("consuming");
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
-      //consumer_pos++;
-      //consumer_pos %= THBUF_SIZE;
+      consumer_pos++;
+      consumer_pos %= THBUF_SIZE;
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
 	 g_usleep (100000);
@@ -142,18 +156,18 @@ static gpointer consumer_thread (gpointer p)
 	    continue;
       }
       if (chunk->eof) {
-	 LOG ("got EOF");
 	 if (chunk_played == 0) {
+	    LOG ("got EOF");
 	    input_plugin_set_end_of_file ();
 	    chunk_played = 1;
-	    consumer_pos++;
-	    consumer_pos %= THBUF_SIZE;
+	    //consumer_pos++;
+	    //consumer_pos %= THBUF_SIZE;
 	 }
 	 g_usleep (100000);
 	 continue;
       }
-      consumer_pos++;
-      consumer_pos %= THBUF_SIZE;
+      //consumer_pos++;
+      //consumer_pos %= THBUF_SIZE;
 
       if (consumer_pos == 0) {
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);

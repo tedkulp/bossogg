@@ -181,7 +181,8 @@ inline gchar *input_filename (void)
    if (current_plugin != NULL) {
       gchar *ret;
       g_mutex_lock (current_mutex);
-      ret = current_song->filename;
+      if (current_song != NULL)
+	 ret = current_song->filename;
       g_mutex_unlock (current_mutex);
       return ret;
    } else {
