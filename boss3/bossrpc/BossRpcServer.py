@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import socket, select, string, thread, threading, xmlrpclib
+import socket, select, string, thread, threading
 from boss3.util.Session import *
+from boss3.xmlrpc import xmlrpclib
 from boss3.util import bosslog
 from boss3.xmlrpc.XmlRpcServer import XmlRpcInterface
 import zlib
@@ -94,11 +95,12 @@ class BossRpcServer(threading.Thread):
 							xml = self.data[i.fileno()]
 							xml = string.strip(zlib.decompress(xml))
 							response = xmlrpclib.loads(xml)
-							log.debug("bossrpc","Received xmlrpc message: %s", response)
+							log.debug("bossrpc","Received xmlrpc message: %s",response)
 							if response[1] in dir(self.interface) and callable(getattr(self.interface, response[1])):
 								ans = (getattr(self.interface,response[1])(*response[0]),)
 								#print ans
 								xml = string.strip(xmlrpclib.dumps(ans, methodresponse=True))
+								#log.debug("bossrpc","Sending xmlrpc message: %s",str(ans))
 								xml = zlib.compress(xml)
 								#print xml
 								i.sendall("%i:%s" % (len(xml),xml))
