@@ -123,6 +123,8 @@ void *thbuf_consume (thbuf_t *buf, size_t *size, int pos)
    g_mutex_lock (buf->mutex);
    void *ret = buf->buf[pos];
    *size = buf->chunk_size[pos];
+   buf->buf[pos] = NULL;
+   buf->chunk_size[pos] = 0;
    //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);
    g_mutex_unlock (buf->mutex);
 
