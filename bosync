@@ -469,13 +469,13 @@ def process_args(args):
 			config["noop"] = True
 			display("Running in NOOP mode, DB will not be modified")
 		if opt in ("--artist",):
-			config["defatults"]["artistname"] = arg
+			config["defaults"]["artistname"] = arg
 		if opt in ("--album",):
-			config["defatults"]["albumname"] = arg
+			config["defaults"]["albumname"] = arg
 		if opt in ("--track",):
-			config["defatults"]["tracknum"] = arg
+			config["defaults"]["tracknum"] = arg
 		if opt in ("--genre",):
-			config["defatults"]["genrename"] = arg
+			config["defaults"]["genrename"] = arg
 		if opt in ("--ARTIST",):
 			config["force"]["artistname"] = arg
 		if opt in ("--ALBUM",):
