@@ -23,7 +23,7 @@ python_PYTHON=__init__.py bossao.py
 python_LTLIBRARIES=_bossao.la
 
 _bossao_la_LDFLAGS=-module
-_bossao_la_SOURCES=bossao.h bossao.c bossao_wrap.c $(USE_SHOUT) $(USE_OGG) $(USE_FLAC) ${USE_MP3} $(USE_OSS_MIXER)
+_bossao_la_SOURCES=bossao.h bossao.c http.c bossao_wrap.c $(USE_SHOUT) $(USE_OGG) $(USE_FLAC) ${USE_MP3} $(USE_OSS_MIXER)
 
 all-local: _bossao.so
 
