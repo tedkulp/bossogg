@@ -110,7 +110,7 @@ inline gint semaphore_v (thbuf_sem_t *sem)
    // increment the count, signal the others 
    g_mutex_lock (sem->mutex);
    count = ++sem->count;
-   g_cond_broadcast (sem->cond);
+   g_cond_signal (sem->cond);
    g_mutex_unlock (sem->mutex);
 
    return count;
@@ -123,7 +123,7 @@ inline gint static_semaphore_v (thbuf_static_sem_t *sem)
    // increment the count, signal the others 
    g_static_mutex_lock (sem->mutex);
    count = ++sem->count;
-   g_cond_broadcast (sem->cond);
+   g_cond_signal (sem->cond);
    g_static_mutex_unlock (sem->mutex);
 
    return count;
