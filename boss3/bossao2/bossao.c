@@ -86,9 +86,9 @@ static gpointer producer_thread (gpointer p)
       }
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
-	 //thbuf_produce (thbuf, cur_chunk, producer_pos);
-	 //producer_pos++;
-	 //producer_pos %= THBUF_SIZE;
+	 thbuf_produce (thbuf, cur_chunk, producer_pos);
+	 producer_pos++;
+	 producer_pos %= THBUF_SIZE;
 	 g_usleep (100000);
 	 continue;
       }
@@ -100,7 +100,7 @@ static gpointer producer_thread (gpointer p)
       if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
       }
-      g_usleep (0);
+      //g_usleep (0);
    }
 
    return NULL;
@@ -158,7 +158,7 @@ static gpointer consumer_thread (gpointer p)
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
-      g_usleep (0);
+      //g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
 	 thbuf_consume (thbuf, consumer_pos);
