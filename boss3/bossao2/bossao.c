@@ -276,6 +276,7 @@ static gpointer consumer_thread (gpointer p)
       if (quit) {
 	 g_usleep (10000);
 	 //thbuf_consume (thbuf, &count);
+	 thbuf_static_consume (&thbuf, &count);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
