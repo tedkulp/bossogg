@@ -71,7 +71,7 @@ class Database:
 		def execute(self, SQL, *args):
 			needlock=0
 
-			if len(SQL)>0 and SQL.split()[0].lower() in ["delete", "update", "insert"]:
+			if len(SQL)>0 and SQL.split()[0].lower() in ["delete", "update", "insert", "commit"]:
 				needlock=1
 
 			if needlock and not self.nolock:
@@ -84,6 +84,19 @@ class Database:
 			if needlock and not self.nolock:
 				sql_lock.release()
 				log.debug("lock", "Release lock for database writes at (%s:%d)" % self.getcaller())
+
+		def begin(self):
+			log.debug("sql", "BEGIN TRANSACTION")
+			self.execute("BEGIN TRANSACTION")
+
+		def commit(self):
+			log.debug("sql", "COMMIT TRANSACTION")
+			self.execute("COMMIT TRANSACTION")
+			
+		def rollback(self):
+			log.debug("sql", "ROLLBACK TRANSACTION")
+			self.execute("ROLLBACK TRANSACTION")
+
 
 	def _cursor(self):
 		self.conn._checkNotClosed("cursor")
@@ -562,18 +575,25 @@ class Database:
 	def importNewSongs(self, songs):
 		log.debug("funcs", "Database.importNewSongs()")
 
-		for song in songs:
-			log.debug("import", "Importing song %s as %s", song["filename"], song)
-			genreid = -1
-			if 'genre' in song.keys():
-				genreid = self._getGenre(self.checkBinary(song['genre']))
-			artistid = self._getArtist(self.checkBinary(song['artistname']),False)
-			metaartistid = -1
-			if 'metaartistname' in song.keys():
-				metaartistid = self._getArtist(self.checkBinary(song['metaartistname']),True)
-			albumid = self._getAlbum(self.checkBinary(song['albumname']), artistid, song['year'])
-			songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid=albumid,year=song['year'],metaartistid=metaartistid, bitrate=song["bitrate"], songlength=song["songlength"])
+		cursor = self.import_cursor
+		cursor.begin()
+		try:
+			for song in songs:
+				log.debug("import", "Importing song %s as %s", song["filename"], song)
+				genreid = -1
+				if 'genre' in song.keys():
+					genreid = self._getGenre(self.checkBinary(song['genre']))
+				artistid = self._getArtist(self.checkBinary(song['artistname']),False)
+				metaartistid = -1
+				if 'metaartistname' in song.keys():
+					metaartistid = self._getArtist(self.checkBinary(song['metaartistname']),True)
+				albumid = self._getAlbum(self.checkBinary(song['albumname']), artistid, song['year'])
+				songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid=albumid,year=song['year'],metaartistid=metaartistid, bitrate=song["bitrate"], songlength=song["songlength"])
+		except:
+			cusor.rollback()
+			raise
 
+		cursor.commit()
 		return True
 
 
@@ -640,24 +660,22 @@ class Database:
 			log.debug("sqlresult", "%s", row)
 			self.i_songcache[row[0]] = int(row[1])
 
-		SQL = "begin transaction"
-		log.debug("sqlquery", "%s", SQL)
-		cursor.execute(SQL)
-
-			
 	def importEnd(self):
 		log.debug("funcs", "Database.importEnd()")
 		cursor = self.import_cursor
-		SQL = "DELETE FROM albums WHERE albumid NOT IN (SELECT albumid FROM songs)"
-		log.debug("sqlquery", "query:%s", SQL)
-		cursor.execute(SQL)
-		SQL = "DELETE FROM artists WHERE artistid NOT IN (SELECT artistid FROM songs) and artistid NOT IN (SELECT metaartistid as artistid FROM songs)"
-		log.debug("sqlquery", "query:%s", SQL)
-		cursor.execute(SQL)
+		cursor.begin()
+		try:
+			SQL = "DELETE FROM albums WHERE albumid NOT IN (SELECT albumid FROM songs)"
+			log.debug("sqlquery", "query:%s", SQL)
+			cursor.execute(SQL)
+			SQL = "DELETE FROM artists WHERE artistid NOT IN (SELECT artistid FROM songs) and artistid NOT IN (SELECT metaartistid as artistid FROM songs)"
+			log.debug("sqlquery", "query:%s", SQL)
+			cursor.execute(SQL)
+		except:
+			cusor.rollback()
+			raise
 
-		SQL = "commit transaction"
-		log.debug("sqlquery", "%s", SQL)
-		cursor.execute(SQL)
+		cursor.commit()
 		
 		log.debug("import", "Import complete, loading song cache (before %d)", len(self.songcache))
 		try:
