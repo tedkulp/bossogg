@@ -113,15 +113,15 @@ class Player(threading.Thread):
 		return result
 
 	def updateTimeInfo(self):
-		self.playedtime = bossao.bossao_time_current(self.lib)
-		self.totaltime = bossao.bossao_time_total(self.lib)
+		self.playedtime = bossao.bossao_time_current()
+		self.totaltime = bossao.bossao_time_total()
 		if self.totaltime > 0:
 			self.playedpercentage = self.playedtime / self.totaltime * 100
 			if self.playedflag == 1 and self.playedpercentage > 75:
 				self.dbh.incrementTimesPlayed(self.songid);
 				self.playedflag = 0
 
-		if bossao.bossao_finished(self.lib) == 1:
+		if bossao.bossao_finished() == 1:
 			#self.state = "NEXT"
 			self.handleNextCommand()
 

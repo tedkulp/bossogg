@@ -2,21 +2,21 @@ if OGG_OPT
 OGG_LIB=input_ogg.la
 input_ogg_la_LDFLAGS=-module
 input_ogg_la_LDLIBS=-logg -lvorbis -lvorbisfile
-input_ogg_la_SOURCES=input_ogg.c
+input_ogg_la_SOURCES=input_ogg.c input_plugin.c
 endif
 
 if MP3_OPT
 MP3_LIB=input_mp3.la
 input_mp3_la_LDFLAGS=-module
 input_mp3_la_LDLIBS=-lmad
-input_mp3_la_SOURCES=input_mp3.c
+input_mp3_la_SOURCES=input_mp3.c input_plugin.c
 endif
 
 if FLAC_OPT
 FLAC_LIB=input_flac.la
 input_flac_la_LDFLAGS=-module
 input_flac_la_LDLIBS=-lFLAC
-input_flac_la_SOURCES=input_flac.c
+input_flac_la_SOURCES=input_flac.c input_plugin.c
 endif
 
 if SHOUT_OPT

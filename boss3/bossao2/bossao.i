@@ -20,7 +20,7 @@
 // stop playing and unload current file
    void bossao_stop (void);
 // play given filename
-   gint bossao_play (gchar *filename);
+   gint bossao_play (char *filename);
 // pause the player
    void bossao_pause (void);
 // unpause the player
@@ -28,8 +28,8 @@
 // check to see if playing is complete
    gint bossao_finished (void);
 // check the total time of the playing file
-   gdouble bossao_time_total (void);
+   double bossao_time_total (void);
 // check the current time of the playing file
-   gdouble bossao_time_current (void);
+   double bossao_time_current (void);
 // get the filename of the current playing file
    gchar *bossao_filename (void);
