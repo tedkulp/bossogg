@@ -116,24 +116,11 @@ static gpointer consumer_thread (gpointer p)
 {
    chunk_s *chunk = (chunk_s *)0x1;
    gint64 last_sample_num = -1;
+   gchar chunk_played = 0;
 
    g_usleep (100000);
    
    while (1) {
-      if (chunk != (chunk_s *)0x1) {
-	 /*
-	 if (last_sample_num == input_plugin_samples_total ()) {
-	    LOG ("Same sample num twice, end of song?");
-	    input_plugin_set_end_of_file ();
-	    thbuf_consume (thbuf, consumer_pos);
-	    consumer_pos++;
-	    consumer_pos %= THBUF_SIZE;
-	    LOG ("consumed after end");
-	    g_usleep (10000);
-	    continue;
-	    }
-	 */
-      }
       //LOG ("consuming");
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
       //consumer_pos++;
@@ -143,18 +130,25 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (100000);
 	 continue;
       }
+      if (chunk->sample_num < last_sample_num)
+	 chunk_played = 0;
       if (chunk->chunk == NULL) {
 	 LOG ("got a NULL chunk %d %d", (gint)last_sample_num, (gint)input_plugin_samples_total ());
+	 if (chunk->sample_num == last_sample_num)
+	    chunk_played = 0;
 	 last_sample_num = chunk->sample_num;
-	 //g_usleep (10000);
+	 g_usleep (10000);
 	 if (!chunk->eof)
 	    continue;
       }
       if (chunk->eof) {
 	 LOG ("got EOF");
-	 input_plugin_set_end_of_file ();
-	 consumer_pos++;
-	 consumer_pos %= THBUF_SIZE;
+	 if (chunk_played == 0) {
+	    input_plugin_set_end_of_file ();
+	    chunk_played = 1;
+	    consumer_pos++;
+	    consumer_pos %= THBUF_SIZE;
+	 }
 	 g_usleep (100000);
 	 continue;
       }
@@ -169,6 +163,7 @@ static gpointer consumer_thread (gpointer p)
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
       g_mutex_unlock (pause_mutex);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
+      chunk_played = 1;
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
