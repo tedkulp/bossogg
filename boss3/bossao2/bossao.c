@@ -85,6 +85,20 @@ static gpointer producer_thread (gpointer p)
       cur_chunk->size = size;
       cur_chunk->sample_num = sample_num;
 
+      if (chunk == NULL) {
+	 LOG ("got a NULL chunk: %lld %lld", last_sample_num, sample_num);
+	 if (eof)
+	    LOG ("was eof...");
+      }
+
+      if (eof_once) {
+	 eof_once = 0;
+	 if (eof) {
+	    g_usleep (100000);
+	    continue;
+	 }
+      }
+
       if (eof) {
 	 LOG ("got eof");
 	 if (last_sample_num > 0) {
@@ -104,6 +118,7 @@ static gpointer producer_thread (gpointer p)
 	    eof = 1;
 	 }
       }
+      cur_chunk->eof = eof;
       if (eof_once) {
 	 LOG ("sleeping...");
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
@@ -112,11 +127,10 @@ static gpointer producer_thread (gpointer p)
 	 while (last_filename == input_filename ())
 	    g_usleep (1000);
 	 g_usleep (100000);
-	 eof_once = 0;
+	 //eof_once = 0;
 	 LOG ("continuing");
 	 continue;
       }
-      cur_chunk->eof = eof;
       
       if (quit) {
 	 g_usleep (100000);
@@ -127,13 +141,16 @@ static gpointer producer_thread (gpointer p)
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
 	 //g_free (cur_chunk);
+	 g_mutex_lock (produce_mutex);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
 	 producer_pos++;
 	 producer_pos %= THBUF_SIZE;
+	 g_mutex_unlock (produce_mutex);
 	 g_usleep (40000);
 	 continue;
       }
       //LOG ("producing");
+      g_mutex_lock (produce_mutex);
       thbuf_produce (thbuf, cur_chunk, producer_pos);
       /*
       if (eof) {
@@ -147,10 +164,9 @@ static gpointer producer_thread (gpointer p)
       //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
       producer_pos %= THBUF_SIZE;
+      g_mutex_unlock (produce_mutex);
 
       last_sample_num = sample_num;
-      if (last_sample_num == 0)
-	 last_sample_num = -1;
       
       if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
@@ -175,9 +191,11 @@ static gpointer consumer_thread (gpointer p)
    
    while (1) {
       //LOG ("consuming");
+      g_mutex_lock (pause_mutex);
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
       consumer_pos++;
       consumer_pos %= THBUF_SIZE;
+      g_mutex_unlock (pause_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
 	 g_usleep (100000);
@@ -185,15 +203,22 @@ static gpointer consumer_thread (gpointer p)
       }
       if (chunk->chunk == NULL) {
 	 LOG ("got a NULL chunk %d %d", (gint)last_sample_num, (gint)input_plugin_samples_total ());
+	 if (last_sample_num == chunk->sample_num) {
+	    LOG ("was eof?");
+	    input_plugin_set_end_of_file ();
+	    g_usleep (100000);
+	 }
 	 last_sample_num = chunk->sample_num;
 	 g_usleep (10000);
-	 if (!chunk->eof)
+	 if (!chunk->eof) {
+	    LOG ("wasn't eof");
 	    continue;
+	 }
       }
       if (chunk->eof) {
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
-	 g_usleep (200000);
+	 g_usleep (100000);
 	 continue;
       }
 

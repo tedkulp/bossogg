@@ -113,6 +113,8 @@ inline gchar *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof)
    if (current_song != NULL && current_plugin != NULL) {
       gchar *ret;
       g_mutex_lock (current_mutex);
+      //LOG ("playing a chunk of %s", current_plugin->name);
+      //g_usleep (0);
       ret = current_plugin->input_play_chunk (current_song, size, sample_num, eof);
       g_mutex_unlock (current_mutex);
       return ret;
