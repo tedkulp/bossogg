@@ -331,6 +331,8 @@ static gint64 get_total_samples (private_mp3_s *mp3)
    mad_timer_reset (&mp3->mp3_timer);
    mad_synth_init (&mp3->mp3_synth);
    fseek (mp3->mp3_file, 0, SEEK_SET);
+
+   return mp3->samples_total;
 }
 
 song_s *_input_open (input_plugin_s *plugin, gchar *filename)

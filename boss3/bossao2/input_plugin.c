@@ -117,6 +117,7 @@ inline gchar *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof)
       g_mutex_unlock (current_mutex);
       return ret;
    } else {
+      *eof = 0;
       LOG ("current song is NULL");
       return NULL;
    }
