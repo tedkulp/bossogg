@@ -169,7 +169,7 @@ int main (int argc, char *argv[])
    g_mutex_unlock (cons_pause_mutex);
 
    /* test stopping and loading a new file */
-   /*
+   
    sleep (secs_to_sleep);
    LOG ("clearing");
    g_mutex_lock (prod_pause_mutex);
@@ -193,7 +193,7 @@ int main (int argc, char *argv[])
    g_mutex_unlock (prod_pause_mutex);
    g_mutex_unlock (cons_pause_mutex);
    sleep (secs_to_sleep);
-   */
+   
 
    LOG ("joining..");
    
