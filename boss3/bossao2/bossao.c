@@ -48,7 +48,6 @@ static GStaticMutex prod_pause_sem_mutex = G_STATIC_MUTEX_INIT;
 static thbuf_static_sem_t cons_pause_sem, prod_pause_sem;
 static GThread *producer, *consumer;
 //static gint paused = 1;
-static gint stopped = 1;
 static gint quit;
 
 static output_mod_plugin_s *softmix_plugin;
@@ -97,13 +96,16 @@ static gpointer producer_thread (gpointer p)
    
    g_usleep (10000);
 
+   /*
    if (eof == -1) {
       LOG ("waiting on eof sem");
       //semaphore_p (produce_eof_sem);
       static_semaphore_p (&produce_eof_sem);
       LOG ("done");
       eof = 0;
-   }
+      }
+   */
+   static_semaphore_p (&produce_eof_sem);
       
    while (1) {
       //semaphore_p (prod_pause_sem);
@@ -188,7 +190,7 @@ static gpointer consumer_thread (gpointer p)
    //semaphore_p (consume_eof_sem);
    static_semaphore_p (&consume_eof_sem);
 
-   LOG ("done waiting");
+   //LOG ("done waiting");
    
    while (1) {
       //semaphore_p (cons_pause_sem);
@@ -305,7 +307,7 @@ static void init_plugins (PyObject *cfgparser)
    input_plugin_open ("input_flac.la");
 
    output_plugin_open ("output_ao.la");
-   //output_plugin_open ("output_shout.la");
+   output_plugin_open ("output_shout.la");
    //output_plugin_open ("output_alsa.la");
 
    softmix_plugin = output_mod_plugin_open ("output_mod_softmix.la");
@@ -328,6 +330,7 @@ static void bossao_thread_init (void)
 void bossao_pause (void)
 {
    //if (cons_pause_sem->count != 0) {
+   /*
    if (cons_pause_sem.count != 0) {
       //semaphore_p (cons_pause_sem);
       static_semaphore_p (&cons_pause_sem);
@@ -341,10 +344,14 @@ void bossao_pause (void)
       //prod_pause_sem->count = 0;
       prod_pause_sem.count = 0;
    }
+   */
+   static_semaphore_reset (&cons_pause_sem);
+   static_semaphore_reset (&prod_pause_sem);
 }
 
 void bossao_unpause (void)
 {
+   /*
    //cons_pause_sem->count = 0;
    cons_pause_sem.count = 0;
    //semaphore_v (cons_pause_sem);
@@ -353,16 +360,23 @@ void bossao_unpause (void)
    prod_pause_sem.count = 0;
    //semaphore_v (prod_pause_sem);
    static_semaphore_v (&prod_pause_sem);
+   */
+   bossao_pause ();
+   static_semaphore_v (&cons_pause_sem);
+   static_semaphore_v (&prod_pause_sem);
 }
 
 gint first = 1;
 
 void bossao_stop (void)
 {
+   /*
    if (first == 0) {
       bossao_pause ();
    } else
-      first = 0;
+   first = 0;
+   */
+   bossao_pause ();
    LOG ("about to clear");
    //thbuf_clear (thbuf);
    thbuf_static_clear (&thbuf);
@@ -458,15 +472,11 @@ gint bossao_play (gchar *filename)
    input_plugin_set (plugin);
    input_open (plugin, filename);
    //bossao_pause ();
-   stopped = 0;
    //produce_eof_sem->count = 0;
    //consume_eof_sem->count = 0;
-   produce_eof_sem.count = 0;
-   consume_eof_sem.count = 0;
-   g_usleep (10000);
+   bossao_pause ();
    //semaphore_v (produce_eof_sem);
    static_semaphore_v (&produce_eof_sem);
-   g_usleep (10000);
    //semaphore_v (consume_eof_sem);
    static_semaphore_v (&consume_eof_sem);
    //g_mutex_unlock (produce_mutex);

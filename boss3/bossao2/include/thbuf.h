@@ -73,6 +73,9 @@ void static_semaphore_new (thbuf_static_sem_t *sem, int count,
 void static_semaphore_free (thbuf_static_sem_t *semaphore);
 gint static_semaphore_p (thbuf_static_sem_t *semaphore);
 gint static_semaphore_v (thbuf_static_sem_t *sempahore);
+gint static_semaphore_reset (thbuf_static_sem_t *sem);
+gint static_semaphore_get_val (thbuf_static_sem_t *sem);
+void static_semaphore_done_with_val (thbuf_static_sem_t *sem);
 
 gint thbuf_produce (thbuf_t *buf, void *p);
 void *thbuf_consume (thbuf_t *buf, gint *count);

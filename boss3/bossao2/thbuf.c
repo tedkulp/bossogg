@@ -69,6 +69,25 @@ void static_semaphore_free (thbuf_static_sem_t *sem)
    g_cond_free (sem->cond);
 }
 
+gint static_semaphore_reset (thbuf_static_sem_t *sem)
+{
+   g_static_mutex_lock (sem->mutex);
+   sem->count = 0;
+   g_static_mutex_unlock (sem->mutex);
+   return 0;
+}
+
+gint static_semaphore_get_val (thbuf_static_sem_t *sem)
+{
+   g_static_mutex_lock (sem->mutex);
+   return sem->count;
+}
+
+void static_semaphore_done_with_val (thbuf_static_sem_t *sem)
+{
+   g_static_mutex_unlock (sem->mutex);
+}
+
 /* performs a p operation on the semaphore
    returns the count of the semaphore */
 gint semaphore_p (thbuf_sem_t *sem)
