@@ -57,7 +57,8 @@ static gpointer producer_thread (gpointer p)
 	 producer_pos = 0;
       }
       g_mutex_unlock (produce_mutex);
-      g_thread_yield ();
+      g_usleep (0);
+      //g_thread_yield ();
    }
 
    return NULL;
@@ -87,7 +88,8 @@ static gpointer consumer_thread (gpointer p)
 	 consumer_pos = 0;
       }
       g_mutex_unlock (pause_mutex);
-      g_thread_yield ();
+      g_usleep (0);
+      //g_thread_yield ();
    }
 
    return NULL;
@@ -120,13 +122,13 @@ void bossao_thread_init (void)
 
 inline void bossao_pause (void)
 {
-   g_mutex_lock (produce_mutex);
+   //g_mutex_lock (produce_mutex);
    g_mutex_lock (pause_mutex);
 }
 
 inline void bossao_unpause (void)
 {
-   g_mutex_unlock (produce_mutex);
+   //g_mutex_unlock (produce_mutex);
    g_mutex_unlock (pause_mutex);
 }
 
