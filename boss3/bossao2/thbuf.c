@@ -115,8 +115,9 @@ int thbuf_produce (thbuf_t *buf, void *p, size_t size, int pos)
 void *thbuf_consume (thbuf_t *buf, size_t *size, int pos)
 {
    /* perform a p operation on full, makes less full */
-   while (buf->full->count > 0)
-      semaphore_p (buf->full);
+   if (buf->full->count == 0)
+      return NULL;
+   semaphore_p (buf->full);
 
    /* critical section, remove the data from the thbuf */
    g_mutex_lock (buf->mutex);
