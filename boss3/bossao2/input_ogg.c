@@ -43,7 +43,7 @@ gint _input_identify (gchar *filename)
    if (filename == NULL)
       return 0;
 
-   int len = strlen (filename);
+   gint len = strlen (filename);
    gchar *ptr = &filename[len - 3];
 
    if (strncmp (ptr, "ogg", 3) == 0)

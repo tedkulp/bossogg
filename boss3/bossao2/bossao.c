@@ -121,6 +121,7 @@ static void init_plugins (PyObject *cfgparser)
    input_plugin_open ("input_flac.la");
 
    output_plugin_open ("output_ao.la");
+   //output_plugin_open ("output_shout.la");
    //output_plugin_open ("output_alsa.la");
 
    output_mod_plugin_open ("output_mod_softmix.la");
@@ -225,7 +226,7 @@ gint bossao_play (gchar *filename)
    gint size;
    input_plugin_s *plugin = input_plugin_find (filename);
    input_plugin_set (plugin);
-   input_open (filename);
+   input_open (plugin, filename);
    g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
    g_usleep (10000);

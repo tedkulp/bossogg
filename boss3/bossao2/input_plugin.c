@@ -110,9 +110,9 @@ inline gint input_finished (void)
    }
 }
 
-inline song_s *input_open (gchar *filename)
+inline song_s *input_open (input_plugin_s *plugin, gchar *filename)
 {
-   song_s *song = current_plugin->input_open (current_plugin, filename);
+   song_s *song = plugin->input_open (plugin, filename);
    song->filename = filename;
    current_song = song;
    return song;
@@ -173,6 +173,7 @@ void input_plugin_clear (input_plugin_s *plugin)
 void input_plugin_set (input_plugin_s *plugin)
 {
    current_plugin = plugin;
+   current_song = NULL;
 }
 
 /* attempt to open the input plugin  */
@@ -202,7 +203,7 @@ input_plugin_s *input_plugin_open (gchar *filename)
    if (current_plugin == NULL)
       current_plugin = plugin;
 
-   LOG ("Input plugin '%s', for '%s' files loaded", filename, plugin->name);
+   LOG ("Input plugin '%s':%p, for '%s' files loaded", filename, plugin, plugin->name);
    
    return plugin;
 }

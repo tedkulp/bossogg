@@ -69,9 +69,10 @@ gint input_seek (gdouble len);
 gdouble input_time_total (void);
 gdouble input_time_current (void);
 gchar *input_play_chunk (gint *size, gchar *buf);
-song_s *input_open (gchar *filename);
+song_s *input_open (input_plugin_s *plugin, gchar *filename);
 gint input_close (void);
 gchar *input_name (void);
+gint input_finished (void);
 gchar *input_filename (void);
 
 gint _input_identify (gchar *filename);

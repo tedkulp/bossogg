@@ -96,7 +96,6 @@ gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
       LOG ("song is finished 2");
       return NULL;
    }
-   LOG ("chunk is %d", *size);
    return p_flac->buffer;
 }
 

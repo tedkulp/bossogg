@@ -52,6 +52,7 @@ int main (int argc, char *argv[])
    bossao_stop ();
    LOG ("stopped");
    bossao_play (argv[2]);
+   LOG ("playing...");
 
    while (!bossao_finished ())
       usleep (10000);
