@@ -121,7 +121,7 @@ class List:
 		#print self.dbh.listArtists(anchor)
 		return self.dbh.listArtists(anchor)
 
-	def albums(self, artistid=None, anchor=""):
+	def albums(self, artistid=None, anchor="", genreid=None):
 		"""
 		Returns a list of all the albums in the
 		database for the given artistid.  Anchor
@@ -131,6 +131,7 @@ class List:
 		Parameters:
 		* artistid - int
 		* anchor - string(optional)
+		* genreid - int
 
 		Returns:
 		* Array
@@ -140,7 +141,7 @@ class List:
 		    * albumyear - int
 		    * metaartist - int (1 = true, 0 = false)
 		"""
-		return self.dbh.listAlbums(artistid, anchor)
+		return self.dbh.listAlbums(artistid, genreid, anchor)
 
 	def songs(self, artistid=None, albumid=None, playlistid=None, anchor="", getgenres=True):
 		"""
@@ -530,23 +531,23 @@ class Load:
 		self.player = player
 		self.dbh = dbh
 
-	def artist(self, theid, replace=False):
+	def artist(self, theid, replace=False, userid=-1):
 		"""Convienence function for calling doQueueAdd()"""
-		return self.doQueueAdd("artistid", theid, replace)
+		return self.doQueueAdd("artistid", theid, replace, userid=userid)
 
-	def album(self, theid, replace=False):
+	def album(self, theid, replace=False, userid=-1):
 		"""Convienence function for calling doQueueAdd()"""
-		return self.doQueueAdd("albumid", theid, replace)
+		return self.doQueueAdd("albumid", theid, replace, userid=userid)
 
-	def song(self, theid, replace=False):
+	def song(self, theid, replace=False, userid=-1):
 		"""Convienence function for calling doQueueAdd()"""
-		return self.doQueueAdd("songid", theid, replace)
+		return self.doQueueAdd("songid", theid, replace, userid=userid)
 
-	def playlist(self, theid, replace=False):
+	def playlist(self, theid, replace=False, userid=-1):
 		"""Convienence function for calling doQueueAdd()"""
-		return self.doQueueAdd("playlistid", theid, replace)
+		return self.doQueueAdd("playlistid", theid, replace, userid=userid)
 
-	def doQueueAdd(self, idtype, theid, replace=False):
+	def doQueueAdd(self, idtype, theid, replace=False, userid=-1):
 		"""
 		Grab songids from the database and put them into the
 		current player thread's queue.
@@ -556,6 +557,7 @@ class Load:
 		* theid is an integer id value.
 		* replace is a boolean that, if true, will clear the queue before
 		  it adds the new songs.
+		* userid is the current logged in user that queued the particular song
 
 		Returns:
 		* int (always 1)
@@ -566,7 +568,7 @@ class Load:
 		if replace is True:
 			self.player.queueClear()
 		for i in ids:
-			self.dbh.setQueueHistoryOnId(i['songid'])
+			self.dbh.setQueueHistoryOnId(i['songid'],userid=userid)
 			self.player.queueSong(i)
 		return 1
 

@@ -61,6 +61,23 @@ class List:
 	    * metaartist - int (1 = True, 0 = False)
 
 
+	list("albumsbygenre"): Returns a list of all the albums in the
+	database that have songs with the given genreid.  Anchor will
+	only return albumnames that start with the given anchor string.
+
+	Parameters:
+	* genreid - int
+	* anchor - string (optional)
+
+	Retruns:
+	* Array
+	  * Struct
+	    * albumname - string(base64)
+	    * albumid - int
+	    * albumyear - int
+	    * metaartist - int -- Always 0
+
+
 	list("songs"): Returns a list of all the albums in the
 	database for the given artistid or albumid.  Anchor will
 	only return artistname or albumnames that start with
@@ -277,6 +294,21 @@ class List:
 				return tmp
 				#else:
 				#	return xmlrpclib.Fault(1, "No artistid given")
+			elif (cmd == "albumsbygenre"):
+				tmp = None
+				#if (len(args)>0):
+				print "%s" % args
+				try:
+					tmp = cmdint.list.albums(genreid=args[0],anchor=args[1])
+				except Exception:
+					try:
+						tmp = cmdint.list.albums(genreid=args[0])
+					except Exception:
+						return xmlrpclib.Fault(2, "Error in given parameters")
+				for i in tmp:
+					if "albumname" in i:
+						i['albumname'] = UTFstring.encode(i['albumname'])
+				return tmp
 			elif (cmd == "songs"):
 				tmp = None
 				if (len(args) > 1):

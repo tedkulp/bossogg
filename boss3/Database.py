@@ -319,7 +319,7 @@ class Database:
 				result.append({"artistid":row['artistid'],"artistname":row['artistname']})
 		return result
 
-	def listAlbums(self, artistid=None, anchor=""):
+	def listAlbums(self, artistid=None, genreid=None, anchor=""):
 		result = []
 		cursor = self.conn.cursor()
 		#Look for real albums first and stick them at the top of the list
@@ -327,7 +327,7 @@ class Database:
 		if artistid != None:
 			SQL = "SELECT albumid, albumname, year FROM albums WHERE artistid = %i " % artistid
 			if (anchor != None and anchor != ""):
-				SQL += "AND albumname like '%s%%' " % anchor.replace("'", "\\'")
+				SQL += "AND albumname like '%s%%%%' " % anchor.replace("'", "\\'")
 			SQL += "ORDER BY year, lower(albumname) ASC"
 			cursor.execute(SQL)
 			for row in cursor.fetchall():
@@ -337,12 +337,21 @@ class Database:
 			SQL = "SELECT a.albumid, a.albumname, a.year FROM albums a INNER JOIN songs s ON a.albumid = s.albumid WHERE s.metaartistid = %s " % artistid
 
 			if (anchor != None and anchor != ""):
-				SQL += "AND a.albumname like '%s%%' " % anchor.replace("'", "\\'")
+				SQL += "AND a.albumname like '%s%%%%' " % anchor.replace("'", "\\'")
 			SQL += "ORDER BY a.year, lower(a.albumname) ASC"
 			cursor.execute(SQL)
 			for row in cursor.fetchall():
 				log.debug("sqlresult", "Row: %s", row)
 				result.append({"albumid":row['a.albumid'],"albumname":row['a.albumname'],"albumyear":row['a.year'],"metaartist":1})
+		elif genreid != None:
+			SQL = "SELECT DISTINCT ar.artistid, ar.artistname, a.albumid, a.albumname, a.year FROM artists ar INNER JOIN albums a ON ar.artistid = a.artistid INNER JOIN songs s ON a.albumid = s.albumid INNER JOIN genre_data gd ON gd.songid = s.songid WHERE gd.genreid = %s " % genreid
+			if (anchor != None and anchor != ""):
+				SQL += "AND albumname like '%s%%%%' " % anchor.replace("'", "\\'")
+			SQL += "ORDER BY lower(a.albumname), lower(ar.artistname) ASC"
+			cursor.execute(SQL)
+			for row in cursor.fetchall():
+				log.debug("sqlresult", "Row: %s", row)
+				result.append({"artistid":row['ar.artistid'],"artistname":row['ar.artistname'],"albumid":row['a.albumid'],"albumname":row['a.albumname'],"albumyear":row['a.year'],"metaartist":0})
 		else:
 			SQL = "SELECT ar.artistid, ar.artistname, a.albumid, a.albumname, a.year FROM albums a INNER JOIN artists ar ON ar.artistid = a.artistid ORDER BY ar.artistname, a.year, lower(a.albumname) ASC"
 			cursor.execute(SQL)
@@ -408,10 +417,10 @@ class Database:
 				result.append({"filename":row['s.filename'], "songid":row['s.songid'], "songlength":row['s.songlength'], "flags":row['s.flags']})
 		return result
 
-	def setQueueHistoryOnId(self, songid):
+	def setQueueHistoryOnId(self, songid, userid=-1):
 		cursor = self.conn.cursor()
-		SQL = "INSERT INTO HISTORY (songid, type, time) VALUES (%s, 'q', %s)"
-		cursor.execute(SQL, songid, time.time())
+		SQL = "INSERT INTO HISTORY (songid, type, time, userid) VALUES (%s, 'q', %s, %s)"
+		cursor.execute(SQL, songid, time.time(), userid)
 
 	def createPlaylist(self, name):
 		cursor = self.conn.cursor()
@@ -494,7 +503,7 @@ class Database:
 		SQL = "SELECT g.genreid, g.genrename FROM genre_data d INNER JOIN genres g ON d.genreid = g.genreid WHERE d.songid = %s"
 		cursor.execute(SQL, songid)
 		for row in cursor.fetchall():
-			log.debug("sqlresult", row)
+			log.debug("sqlresult", "Row: %s", row)
 			result.append({"genreid":row['g.genreid'],"genrename":row['g.genrename']})
 		return result
 
@@ -599,7 +608,7 @@ class Database:
 					if 'metaartistname' in song.keys():
 						metaartistid = self._getArtist(self.checkBinary(song['metaartistname']),True)
 					albumid = self._getAlbum(self.checkBinary(song['albumname']), artistid, song['year'])
-					songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid=albumid,year=song['year'],metaartistid=metaartistid, bitrate=song["bitrate"], songlength=song["songlength"])
+					songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid=albumid,year=song['year'],metaartistid=metaartistid, bitrate=song["bitrate"], songlength=song["songlength"], genreid=genreid)
 				else:
 					log.debug("import", "Could not get bitrate of song %s.  Assuming bad file.", song["filename"])
 		except:
@@ -628,12 +637,18 @@ class Database:
 			cursor.execute(SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, bitrate, metaartistid, now, now)
 			self.getalbumstatus = True
 			sid = cursor.lastrowid
+			if genreid != -1:
+				SQL = "insert into genre_data(songid, genreid) VALUES (%s, %s)"
+				cursor.execute(SQL, sid, genreid)
 			self.i_songcache[filename] = sid
 		#TODO: Check to see if there are changes
 		else:
 			sid = self.i_songcache["filename"]
 			SQL = "update songs set modified_date = %s, songname = %s, artistid = %s, albumid = %s, year = %s, tracknum = %s, filename = %s, songlength = %s, bitrate = %s, metaartistid = %s, filesize = %s where songid = %s"
 			cursor.execute(SQL, now, songname, artistid, albumid, year, tracknum, filename, songlength, bitrate, metaartistid, statinfo.st_size, sid)
+			if genreid != -1:
+				SQL = "update genre_data set genreid=%s WHERE songid=%s"
+				cursor.execute(SQL, genreid, sid)
 			self.getalbumstatus = False
 		return sid
 
@@ -710,7 +725,7 @@ class Database:
 		if 'metaartistname' in somesong.keys():
 			metaartistid = self._getArtist(self.checkBinary(somesong['metaartistname']),True)
 		albumid = self._getAlbum(self.checkBinary(somesong['albumname']), artistid, somesong['year'])
-		songid = self._getSong(self.checkBinary(somesong['songname']),artistid,self.checkBinary(somesong['filename']),somesong['tracknum'],albumid,somesong['year'],metaartistid)
+		songid = self._getSong(self.checkBinary(somesong['songname']),artistid,self.checkBinary(somesong['filename']),somesong['tracknum'],albumid,somesong['year'],metaartistid,genreid=genreid)
 		resultmem['genreid'] = genreid
 		resultmem['artistid'] = artistid
 		resultmem['metaartistid'] = metaartistid
@@ -786,6 +801,7 @@ class Database:
 				self.addSongToPlaylist(playlistid, i)
 
 	def _getGenre(self, genrename):
+		log.debug("funcs", "Database._getGenre()")
 		gid = -1
 		genrename = string.strip(genrename)
 		cursor = self.import_cursor
@@ -806,8 +822,8 @@ class Database:
 					log.debug("sqlresult", "%s", row)
 					gid = row['genreid']
 				else:
-					SQL = "update genres set genrename = %s, modified_date = %s"
-				cursor.execute(SQL, genrename, now)
+					SQL = "update genres set genrename = %s, modified_date = %s where genreid=%s"
+					cursor.execute(SQL, genrename, now, gid)
 				self.getgenrestatus = False
 			self.genrecache[genrename] = gid
 		else:
@@ -921,11 +937,17 @@ class Database:
 			cursor.execute(SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, metadata['bitrate'], metaartistid, now, now)
 			self.getalbumstatus = True
 			sid = cursor.lastrowid
+			if genreid > -1:
+				SQL = "insert into genre_data(songid, genreid, create_date, modified_date) VALUES (%s, %s, %s, %s)"
+				cursor.execute(SQL, sid, genreid, now, now)
 			self.i_songcache[filename] = sid
 		#TODO: Check to see if there are changes
 		else:
 			SQL = "update songs set modified_date = %s, songname = %s, artistid = %s, albumid = %s, year = %s, tracknum = %s, filename = %s, songlength = %s, bitrate = %s, metaartistid = %s, filesize = %s where songid = %s"
 			cursor.execute(SQL, now, songname, artistid, albumid, year, tracknum, filename, metadata['songlength'], metadata['bitrate'], metaartistid, statinfo.st_size, sid)
+			if genreid > -1:
+				SQL = "update genre_data set genreid=%s, modified_date=%s WHERE songid=%s"
+				cursor.execute(SQL, genreid, now, sid)
 			self.getalbumstatus = False
 		return sid
 
