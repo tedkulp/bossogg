@@ -274,10 +274,11 @@ static text_tag_s *get_ogg_text_tag (const char *filename)
   text_tag->frequency =  vi->rate;
   str = vc->user_comments;
   int length_i = 0;
-  while (*str) {
+  int i;
+  for (i = 0; i < vc->comments; i++) {
 	int type = get_ogg_type (*str);
 	if (type != -1)
-	  parse_ogg_content (*str, vc->comment_lengths[length_i], &text_tag, type);
+	  parse_ogg_content (str[i], vc->comment_lengths[length_i], &text_tag, type);
 	++str;
 	length_i++;
   }
