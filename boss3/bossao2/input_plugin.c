@@ -39,6 +39,8 @@ song_s *song_new (input_plugin_s *input_plugin, void *data)
    song_s *song = g_malloc (sizeof (song_s));
    song->input_plugin = input_plugin;
    song->private = data;
+   song->filename = NULL;
+   song->finished = 0;
    return song;
 }
 
@@ -50,7 +52,12 @@ void song_free (song_s *song)
 
 inline gint input_identify (gchar *filename)
 {
-   return current_plugin->input_identify (filename);
+   if (current_plugin != NULL) 
+      return current_plugin->input_identify (filename);
+   else {
+      LOG ("current plugin is NULL");
+      return -1;
+   }
 }
 
 inline gint input_seek (gdouble len)
@@ -93,9 +100,20 @@ inline gchar *input_play_chunk (gint *size, gchar *buf)
    }
 }
 
+inline gint input_finished (void)
+{
+   if (current_song != NULL)
+      return current_song->finished;
+   else {
+      LOG ("current song is NULL");
+      return -1;
+   }
+}
+
 inline song_s *input_open (gchar *filename)
 {
    song_s *song = current_plugin->input_open (current_plugin, filename);
+   song->filename = filename;
    current_song = song;
    return song;
 }
@@ -114,8 +132,23 @@ inline gint input_close (void)
 }
 
 inline gchar *input_name (void)
-{ 
-   return current_plugin->input_name ();
+{
+   if (current_plugin != NULL)
+      return current_plugin->input_name ();
+   else {
+      LOG ("current plugin is NULL");
+      return NULL;
+   }
+}
+
+inline gchar *input_filename (void)
+{
+   if (current_plugin != NULL) 
+      return current_song->filename;
+   else {
+      LOG ("current plugin is NULL");
+      return NULL;
+   }
 }
 
 /* if plugin is NULL, clear the currently used plugin

@@ -33,11 +33,11 @@ gint output_open (PyObject *cfgparser)
    gint exact;
    snd_pcm_hw_params_t *hw_params;
    
+   snd_pcm_hw_params_alloca (&hw_params);
    if ((err = snd_pcm_open (&playback_handle, device, SND_PCM_STREAM_PLAYBACK, 0)) < 0) {
       LOG ("cannot open audio device '%s', error: %s", device, snd_strerror (err));
       return -1;
    }
-   snd_pcm_hw_params_alloca (&hw_params);
    /*
    if ((err = snd_pcm_hw_params_alloca (&hw_params)) < 0) {
       LOG ("cannot allocate hw param struct: %s", snd_strerror (err));

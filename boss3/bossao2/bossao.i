@@ -1,21 +1,24 @@
 %module bossao
 %{
 #include <Python.h>
-#include <ao/ao.h>
+#include <glib.h>
 
 #import "bossao.h"
 %}
-void bossao_new (PyObject *cfgparser);
-int bossao_start (song_s *song, PyObject *cfgparser);
-int bossao_seek (song_s *song, double secs);
-void bossao_shutdown (song_s *song);
-void bossao_stop (song_s *song);
-int bossao_play (song_s *song, char *filename);
-int bossao_pause (song_s *song);
-int bossao_unpause (song_s *song);
-int bossao_finished (song_s *song);
-double bossao_time_total (song_s *song);
-double bossao_time_current (song_s *song);
-char *bossao_filename (song_s *song);
-char *bossao_driver_name (song_s *song);
-void bossao_thread_init (void);
+   void bossao_new(PyObject *cfgparser, gchar *filename);
+   void bossao_free(void);
+   
+   void bossao_join (void);
+
+   void bossao_open (PyObject *cfgparser);
+   void bossao_close (void);
+   
+   gint bossao_seek (gdouble secs);
+   void bossao_stop (void);
+   gint bossao_play (gchar *filename);
+   void bossao_pause (void);
+   void bossao_unpause (void);
+   gint bossao_finished (void);
+   gdouble bossao_time_total (void);
+   gdouble bossao_time_current (void);
+   gchar *bossao_filename (void);

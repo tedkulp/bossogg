@@ -25,6 +25,8 @@
 #import "common.h"
 
 typedef struct song_t {
+   gint finished;
+   gchar *filename;
    struct input_plugin_t *input_plugin;
    void *private;
 } song_s;
@@ -34,10 +36,10 @@ typedef gint (*input_identify_f)(gchar *filename);
 typedef gint (*input_seek_f)(song_s *song, gdouble length);
 typedef gdouble (*input_time_total_f)(song_s *song);
 typedef gdouble (*input_time_current_f)(song_s *song);
-typedef gchar * (*input_play_chunk_f)(song_s *song, gint *size, gchar *buffer);
-typedef song_s * (*input_open_f)(struct input_plugin_t *plugin, gchar *filename);
+typedef gchar *(*input_play_chunk_f)(song_s *song, gint *size, gchar *buffer);
+typedef song_s *(*input_open_f)(struct input_plugin_t *plugin, gchar *filename);
 typedef gint (*input_close_f)(song_s *song);
-typedef gchar * (*input_name_f)(void);
+typedef gchar *(*input_name_f)(void);
 
 typedef struct input_plugin_t {
    input_identify_f input_identify;
@@ -70,6 +72,7 @@ gchar *input_play_chunk (gint *size, gchar *buf);
 song_s *input_open (gchar *filename);
 gint input_close (void);
 gchar *input_name (void);
+gchar *input_filename (void);
 
 gint _input_identify (gchar *filename);
 gint _input_seek (song_s *song, gdouble len);

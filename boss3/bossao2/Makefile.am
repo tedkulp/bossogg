@@ -48,7 +48,7 @@ output_alsa_la_LDLIBS=-lasound
 output_alsa_la_SOURCES=output_alsa.c
 
 _bossao_la_LDFLAGS=-module
-_bossao_la_SOURCES=bossao.c thbuf.c output_plugin.c input_plugin.c output_mod_plugin.c #bossao_wrap.c
+_bossao_la_SOURCES=bossao.c thbuf.c output_plugin.c input_plugin.c output_mod_plugin.c bossao_wrap.c
 
 all-local: _bossao.so
 

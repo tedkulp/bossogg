@@ -36,6 +36,8 @@ typedef struct {
    semaphore_t *empty, *full;
 } thbuf_t;
 
+#define THBUF_SIZE 256
+
 semaphore_t *semaphore_new (int count);
 void semaphore_free (semaphore_t *semaphore);
 int semaphore_p (semaphore_t *semaphore);

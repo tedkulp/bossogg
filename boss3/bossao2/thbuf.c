@@ -98,8 +98,8 @@ int thbuf_produce (thbuf_t *buf, void *p, size_t size, gint pos)
 
    // critical section, add the data to the thbuf 
    g_mutex_lock (buf->mutex);
-   buf->buf[pos] = p;
-   buf->chunk_size[pos] = size;
+   buf->buf[pos % THBUF_SIZE] = p;
+   buf->chunk_size[pos % THBUF_SIZE] = size;
    //LOG ("added %p size %d to %d", buf->buf[pos], buf->chunk_size[pos], pos);
    g_mutex_unlock (buf->mutex);
 
@@ -125,10 +125,10 @@ void *thbuf_consume (thbuf_t *buf, size_t *size, gint pos)
 
    //critical section, remove the data from the thbuf 
    g_mutex_lock (buf->mutex);
-   void *ret = buf->buf[pos];
+   void *ret = buf->buf[pos % THBUF_SIZE];
    *size = buf->chunk_size[pos];
-   buf->buf[pos] = NULL;
-   buf->chunk_size[pos] = 0;
+   buf->buf[pos % THBUF_SIZE] = NULL;
+   buf->chunk_size[pos % THBUF_SIZE] = 0;
    //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);
    g_mutex_unlock (buf->mutex);
 

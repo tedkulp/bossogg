@@ -33,11 +33,15 @@ del types
 
 bossao_new = _bossao.bossao_new
 
-bossao_start = _bossao.bossao_start
+bossao_free = _bossao.bossao_free
+
+bossao_join = _bossao.bossao_join
+
+bossao_open = _bossao.bossao_open
+
+bossao_close = _bossao.bossao_close
 
 bossao_seek = _bossao.bossao_seek
-
-bossao_shutdown = _bossao.bossao_shutdown
 
 bossao_stop = _bossao.bossao_stop
 
@@ -54,6 +58,4 @@ bossao_time_total = _bossao.bossao_time_total
 bossao_time_current = _bossao.bossao_time_current
 
 bossao_filename = _bossao.bossao_filename
-
-bossao_driver_name = _bossao.bossao_driver_name
 

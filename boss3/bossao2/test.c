@@ -53,8 +53,11 @@ int main (int argc, char *argv[])
    LOG ("stopped");
    bossao_play (argv[2]);
 
-   LOG ("joining..");
-   bossao_join ();
+   while (!bossao_finished ())
+      usleep (10000);
+   
+   //LOG ("joining..");
+   //bossao_join ();
 
    return 0;
 }

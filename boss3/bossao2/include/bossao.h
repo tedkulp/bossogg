@@ -26,14 +26,6 @@
 #import "thbuf.h"
 #import "input_plugin.h"
 
-#define VORBIS 0
-#define MP3 1
-#define FLAC 2
-
-#define NO_MIXER 0
-#define OSS_MIXER 1
-#define ALSA_MIXER 2
-
 #define BUF_SIZE 8192
 #define BUF_CHUNKS 256
 
@@ -49,23 +41,19 @@ extern "C" {
    void bossao_free(void);
    
    void bossao_join (void);
-   
+
    void bossao_open (PyObject *cfgparser);
-   gint bossao_close (song_s *song);
-   gint bossao_start (song_s *song, PyObject *cfgparser);
-   gint bossao_seek (song_s *song, gdouble secs);
-   void bossao_shutdown (song_s *song);
+   void bossao_close (void);
+   
+   gint bossao_seek (gdouble secs);
    void bossao_stop (void);
    gint bossao_play (gchar *filename);
    void bossao_pause (void);
    void bossao_unpause (void);
-   gint bossao_finished (song_s *song);
-   gdouble bossao_time_total (song_s *song);
-   gdouble bossao_time_current (song_s *song);
-   gchar *bossao_filename (song_s *song);
-   gchar *bossao_driver_name (song_s *song);
-   void bossao_play_chunk (guchar *buffer, gint size);
-   void bossao_thread_init (void);
+   gint bossao_finished (void);
+   gdouble bossao_time_total (void);
+   gdouble bossao_time_current (void);
+   gchar *bossao_filename (void);
    
    //#endif
 #ifdef __cplusplus

@@ -243,6 +243,7 @@ gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
    gint buf_size;
 
    if (mp3_read (song, buffer, &buf_size) == DECODE_BREAK) {
+      song->finished = 1;
       g_free (buffer);
       return NULL;
    }

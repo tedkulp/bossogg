@@ -27,7 +27,6 @@
 #import "output_mod_plugin.h"
 #import "thbuf.h"
 
-#define THBUF_SIZE 256
 //static gchar chunks[THBUF_SIZE * BUF_SIZE];
 
 static thbuf_t *thbuf;
@@ -66,12 +65,13 @@ static gpointer producer_thread (gpointer p)
       thbuf_produce (thbuf, chunk, size, producer_pos);
       //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
-      if (producer_pos >= THBUF_SIZE) {
+      producer_pos %= THBUF_SIZE;
+      if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
 	 producer_pos = 0;
       }
       g_mutex_unlock (produce_mutex);
-      g_usleep (0);
+      //g_usleep (0);
       //g_thread_yield ();
    }
 
@@ -101,11 +101,13 @@ static gpointer consumer_thread (gpointer p)
       output_plugin_write_chunk_all (chunk, size);
       g_free (chunk);
       consumer_pos++;
-      if (consumer_pos >= THBUF_SIZE) {
+      consumer_pos %= THBUF_SIZE;
+      if (consumer_pos == 0) {
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
 	 consumer_pos = 0;
-      }
+      }      
       g_mutex_unlock (pause_mutex);
+      // give up the context in case the producer needs to get ahead
       g_usleep (0);
       //g_thread_yield ();
    }
@@ -127,7 +129,7 @@ static void init_plugins (PyObject *cfgparser)
    output_mod_plugin_open ("output_mod_softmix.la");
 }
 
-void bossao_thread_init (void)
+static void bossao_thread_init (void)
 {
 #ifdef G_THREADS_IMPL_NONE
    printf ("Your installation of glib2 does not appear to have thread\n"
@@ -229,4 +231,39 @@ gint bossao_play (gchar *filename)
 void bossao_open (PyObject *cfgparser)
 {
    output_plugin_open_all (cfgparser);
+}
+
+/* close the output devices */
+void bossao_close (void)
+{
+   output_plugin_close_all ();
+}
+
+gint bossao_seek (gdouble secs)
+{
+   gint ret;
+   bossao_pause ();
+   //thbuf_clear (thbuf);
+   ret = input_seek (secs);
+   bossao_unpause ();
+}
+
+gdouble bossao_time_total (void)
+{
+   return input_time_total ();
+}
+
+gdouble bossao_time_current (void)
+{
+   return input_time_current ();
+}
+
+gchar *bossao_filename (void)
+{
+   return input_filename ();
+}
+
+gint bossao_finished (void)
+{
+   return input_finished ();
 }

@@ -82,12 +82,18 @@ gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
    p_flac->was_metadata = 1;
    FLAC__file_decoder_process_single (decoder);
 
-   if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE)
+   if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE) {
+      song->finished = 1;
       return NULL;
+   }
 
    semaphore_p (p_flac->sem);
    *size = p_flac->buffer_size;
-   
+   if (*size == 0) {
+      song->finished = 1;
+      return NULL;
+   }
+   LOG ("chunk is %d", *size);
    return p_flac->buffer;
 }
 
@@ -141,6 +147,10 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
 
   p_flac->time_current += ((gdouble)samples) / frame->header.sample_rate;
   p_flac->was_metadata = 0;
+  
+  if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE) {
+     song->finished = 1;
+  }
   
   semaphore_v (p_flac->sem);
   return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
