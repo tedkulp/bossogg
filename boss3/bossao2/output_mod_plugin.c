@@ -132,7 +132,7 @@ void output_mod_plugin_run_all_helper (gpointer item, gpointer user_data)
    plugin->output_mod_run (s->chunk, s->size);
 }
 
-void output_mod_plugin_run_all (guchar *chunk, gint size)
+void output_mod_plugin_run_all (gchar *chunk, gint size)
 {
    mod_run_s s;
    

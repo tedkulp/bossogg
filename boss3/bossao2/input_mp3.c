@@ -367,7 +367,7 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
       while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT)
 	 ;
       if (ret == DECODE_BREAK)
-	 return -1;
+	 return NULL;
       if (!skip && ret == DECODE_OK)
 	 break;
    }

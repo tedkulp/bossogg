@@ -27,7 +27,7 @@ typedef gchar *(*output_mod_name_f)(void);
 typedef gchar *(*output_mod_description_f)(void);
 typedef void (*output_mod_configure_f)(gint arg1, gint arg2, gpointer user_data);
 typedef void (*output_mod_get_config_f)(gint *arg1, gint *arg2, gpointer *user_data);
-typedef void (*output_mod_run_f)(guchar *chunk, gint size);
+typedef void (*output_mod_run_f)(gchar *chunk, gint size);
 
 typedef struct output_mod_plugin_t {
    output_mod_name_f output_mod_name;
@@ -43,11 +43,11 @@ void output_mod_plugin_clear (output_mod_plugin_s *plugin);
 output_mod_plugin_s *output_mod_plugin_open (gchar *filename);
 void output_mod_plugin_close (output_mod_plugin_s *plugin);
 void output_mod_plugin_close_all (void);
-void output_mod_plugin_run_all (guchar *chunk, gint size);
+void output_mod_plugin_run_all (gchar *chunk, gint size);
 void output_mod_plugin_configure_all (gint arg1, gint arg2, gpointer user_data);
 
 gchar *output_mod_name (void);
 gchar *output_mod_description (void);
 void output_mod_configure (gint arg1, gint arg2, gpointer user_data);
 void output_mod_get_config (gint *arg1, gint *arg2, gpointer *user_data);
-void output_mod_run (guchar *chunk, gint size);
+void output_mod_run (gchar *chunk, gint size);
