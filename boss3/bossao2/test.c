@@ -37,7 +37,7 @@ static gpointer producer (gpointer p)
    LOG ("producer thread started");
 
    while (1) {
-      g_mutex_lock (prod_pause_mutex);
+      //g_mutex_lock (prod_pause_mutex);
       int size;
       gchar *chunk = input_play_chunk (NULL, &size);
       //LOG ("producing");
@@ -61,7 +61,7 @@ static gpointer producer (gpointer p)
       }
       //if (cons_pos == prod_pos + 1)
 //	 g_usleep (10000);
-      g_mutex_unlock (prod_pause_mutex);
+      //g_mutex_unlock (prod_pause_mutex);
       g_thread_yield ();
    }
       
