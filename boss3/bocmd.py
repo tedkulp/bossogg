@@ -121,12 +121,15 @@ Percentage played: %5.1d	Times played: %s" % (q['index'], q['songid'], q['trackn
 		elif (cmd == "albums"):
 			albums = None
 			cmdargs = string.split(args," ",2)
-			if (len(cmdargs)==3):
-				albums = self.server.list("albums",int(cmdargs[1]),str(cmdargs[2]))
-			elif (len(cmdargs)==2):
-				albums = self.server.list("albums",int(cmdargs[1]))
-			else:
-				print "Error in given parameters"
+			try:
+				if (len(cmdargs)==3):
+					albums = self.server.list("albums",int(cmdargs[1]),str(cmdargs[2]))
+				elif (len(cmdargs)==2):
+					albums = self.server.list("albums",int(cmdargs[1]))
+				else:
+					print "Error in number of parameters"
+			except ValueError:
+				print "Invalid parameters"
 			if albums:
 				albums = util.UTFstring.decode(albums)
 				for a in albums:
