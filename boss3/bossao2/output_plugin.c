@@ -139,6 +139,8 @@ void output_plugin_write_chunk_all (guchar *buffer, gint size)
 
    s.buffer = buffer;
    s.size = size;
+   if (!buffer || size < 0)
+      return;
    g_slist_foreach (output_list, output_plugin_write_chunk_all_helper, &s);
    
    return;

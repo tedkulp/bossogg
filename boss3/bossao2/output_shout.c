@@ -53,6 +53,9 @@ static gint write_page (ogg_page *page)
 {
    gint written;
 
+   if (!page->header_len || !page->body_len)
+      return 0;
+   
    shout_sync (st);
    written = shout_send (st, page->header, page->header_len);
    written = shout_send (st, page->body, page->body_len);

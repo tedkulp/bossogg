@@ -161,6 +161,7 @@ static gpointer consumer_thread (gpointer p)
       g_mutex_unlock (pause_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
+	 semaphore_v (thbuf->empty);
 	 g_usleep (100000);
 	 continue;
       }
@@ -177,6 +178,7 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (10000);
 	 if (!chunk->eof) {
 	    LOG ("wasn't eof");
+	    semaphore_v (thbuf->empty);
 	    //g_free (chunk);
 	    continue;
 	 }
@@ -185,6 +187,7 @@ static gpointer consumer_thread (gpointer p)
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
 	 semaphore_p (eof_sem);
+	 semaphore_v (thbuf->empty);
 	 //g_usleep (10000);
 	 //g_free (chunk);
 	 continue;
@@ -360,6 +363,7 @@ gint bossao_play (gchar *filename)
    input_plugin_set (plugin);
    input_open (plugin, filename);
    stopped = 0;
+   eof_sem->count = 0;
    semaphore_v (eof_sem);
    semaphore_v (eof_sem);
    //g_mutex_unlock (produce_mutex);
