@@ -44,7 +44,6 @@ sql_lock = threading.RLock()
 
 
 class Database:
-
 	conn = ""
 	dbname = ""
 	songcache = []
@@ -59,6 +58,7 @@ class Database:
 	getsongstatus = False
 	#cursong = None
 	import_cursor = None
+	tables = {}
 
 	class _Cursor(sqlite.Cursor):
 		nolock=0
@@ -76,25 +76,23 @@ class Database:
 
 			if needlock and not self.nolock:
 				sql_lock.acquire()
-				log.debug("lock", "Acquire lock for database writes at (%s:%d)" % self.getcaller())
+				log.debug("lock", "Acquire lock for database writes", stack=1)
 			try:
+				log.debug("sqlquery", "SQL: "+SQL, stack=1, *args)
 				sqlite.Cursor.execute(self, SQL, *args)
 			except:
 				log.exception("SQL ERROR")
 			if needlock and not self.nolock:
 				sql_lock.release()
-				log.debug("lock", "Release lock for database writes at (%s:%d)" % self.getcaller())
+				log.debug("lock", "Release lock for database writes", stack=1)
 
 		def begin(self):
-			log.debug("sql", "BEGIN TRANSACTION")
 			self.execute("BEGIN TRANSACTION")
 
 		def commit(self):
-			log.debug("sql", "COMMIT TRANSACTION")
 			self.execute("COMMIT TRANSACTION")
 			
 		def rollback(self):
-			log.debug("sql", "ROLLBACK TRANSACTION")
 			self.execute("ROLLBACK TRANSACTION")
 
 
@@ -102,10 +100,26 @@ class Database:
 		self.conn._checkNotClosed("cursor")
 		return self._Cursor(self.conn, self.conn.rowclass)
 
+	def loadTableStructures(self):
+		self.tables = {}
+		log.debug("funcs", "Database.tableStructures")
+		cursor = self.conn.cursor()
+		cursor.execute("select name,sql from sqlite_master where type='table'")
+		for row in cursor.fetchall():
+			self.tables[row[0]] = []
+			sql = row[1].split("\n")
+			for line in sql[1:-1]:
+				data = line.split()
+				field = data[0]
+				self.tables[row[0]].append(field)
+		cursor.close()
+		log.debug("import", "Got Table data %s", self.tables)
+
 	def connect(self, autocommit=True):
 		if ( (self.conn == None or self.conn == "") and self.dbname != ""):
 			self.conn = sqlite.connect(db=self.dbname, mode=755, autocommit=autocommit)
 			self.conn.cursor=self._cursor
+
 
 	def disconnect(self):
 		if (self.conn != None or self.conn != ""):
@@ -114,7 +128,6 @@ class Database:
 
 	def runScript(self,SQL):
 		cursor = self.conn.cursor()
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		#cursor.commit()
 		cursor.close()
@@ -123,7 +136,6 @@ class Database:
 		result = -1
 		cursor = self.conn.cursor()
 		SQL = "select versionnumber from version"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -133,7 +145,6 @@ class Database:
 	def setSchemaVersion(self, versionnumber):
 		cursor = self.conn.cursor()
 		SQL = "update version set versionnumber = %s"
-		log.debug("sqlquery", SQL, versionnumber)
 		cursor.execute(SQL, versionnumber)
 
 	def loadSongCache(self):
@@ -144,7 +155,6 @@ class Database:
 		FROM songs, albums, artists
 		WHERE songs.albumid = albums.albumid and albums.artistid = artists.artistid
 		ORDER BY artists.artistname, albums.year, albums.albumname, songs.tracknum, songs.songname"""
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		i = 0
 		self.songcache = []
@@ -161,12 +171,10 @@ class Database:
 	def loadState(self,player):
 		cursor = self.conn.cursor()
 		SQL = "select * from currentstate"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			player.songqueue.setCurrentIndex(row['queueindex'])
 		SQL = "select q.songid,s.filename,s.songlength,s.flags from queue q inner join songs s on q.songid = s.songid order by q.indexid"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		i=0
 		for row in cursor.fetchall():
@@ -180,18 +188,14 @@ class Database:
 	def saveState(self,player):
 		cursor = self.conn.cursor()
 		SQL = "delete from currentstate"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		SQL = "insert into currentstate (queueindex, playlistid, songid, shuffle) values (%s, %s, %s, %s)" 
-		log.debug("sqlquery", SQL, player.songqueue.getCurrentIndex(),-1,player.songid,0)
 		cursor.execute(SQL, player.songqueue.getCurrentIndex(),-1,player.songid,0)
 		SQL = "delete from queue"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		queuesongids = player.songqueue.getSongIDs()
 		for i in queuesongids:
 			SQL = "insert into queue (songid) values (%s)"
-			log.debug("sqlquery", SQL, i)
 			cursor.execute(SQL, i)
 
 	def getNextSong(self, newindex = -1, shuffle = 0):
@@ -206,7 +210,6 @@ class Database:
 	def getRandomSong(self):
 		cursor = self.conn.cursor()
 		SQL = "select songs.songid, songs.filename, songs.songlength, songs.flags from songs order by random() limit 1"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -217,7 +220,6 @@ class Database:
 		result = {}
 		cursor = self.conn.cursor()
 		SQL = "select al.artistid, s.albumid, s.songname, s.bitrate, s.songlength, s.tracknum, s.filesize, s.timesplayed, s.filename, s.weight, s.flags, al.albumname, al.year, a.artistname, s.metaartistid, m.artistname from songs s inner join albums al on s.albumid = al.albumid inner join artists a on s.artistid = a.artistid outer left join artists m on m.artistid = s.metaartistid where songid = %s"
-		log.debug("sqlquery", SQL, songid)
 		cursor.execute(SQL, songid)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "XRow: %s", row)
@@ -241,7 +243,6 @@ class Database:
 				result['metaartistname'] = row['m.artistname']
 
 		SQL = "select count(*) as thecount, type, songid from history where songid = %s group by songid, type order by songid"
-		log.debug("sqlquery", SQL, songid)
 		result['timesstarted'] = result['timesplayed'] = result['timesrequested'] = 0
 		cursor.execute(SQL, songid)
 		for row in cursor.fetchall():
@@ -267,7 +268,6 @@ class Database:
 		cursor = self.conn.cursor()
 		SQL = "SELECT userid, authlevel FROM users "
 		SQL += "WHERE username = %s AND password = %s"
-		log.debug("sqlquery", "query:"+SQL, username, password)
 		cursor.execute(SQL, username, password)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -281,7 +281,6 @@ class Database:
 		if (anchor != None and anchor != ""):
 			SQL += "WHERE artistname like '%s%%' " % anchor
 		SQL += "ORDER BY lower(artistname) ASC"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -298,7 +297,6 @@ class Database:
 		if (anchor != None and anchor != ""):
 			SQL += "AND albumname like '%s%%' " % anchor.replace("'", "\\'")
 		SQL += "ORDER BY year, lower(albumname) ASC"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -309,7 +307,6 @@ class Database:
 		if (anchor != None and anchor != ""):
 			SQL += "AND a.albumname like '%s%%' " % anchor.replace("'", "\\'")
 		SQL += "ORDER BY a.year, a.albumname ASC"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -320,7 +317,6 @@ class Database:
 		result = []
 		cursor = self.conn.cursor()
 		SQL = "SELECT playlistid, name, userid FROM playlists order by playlistid"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -331,7 +327,6 @@ class Database:
 		result = []
 		cursor = self.conn.cursor()
 		SQL = "SELECT genreid, genrename FROM genres order by genreid"
-		log.debug("sqlquery", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", row)
@@ -341,16 +336,13 @@ class Database:
 	def incrementTimesStarted(self, songid):
 		cursor = self.conn.cursor()
 		SQL = "INSERT INTO HISTORY (songid, type, time) VALUES (%s, 's', %s)"
-		log.debug("sqlquery", SQL, songid, time.time())
 		cursor.execute(SQL, songid, time.time())
 
 	def incrementTimesPlayed(self, songid):
 		cursor = self.conn.cursor()
 		SQL = "UPDATE songs SET timesplayed = timesplayed + 1 where songid = %s"
-		log.debug("sqlquery", SQL, songid)
 		cursor.execute(SQL, songid)
 		SQL = "INSERT INTO HISTORY (songid, type, time) VALUES (%s, 'p', %s)"
-		log.debug("sqlquery", SQL, songid, time.time())
 		cursor.execute(SQL, songid, time.time())
 
 	def getIds(self, idtype, theid):
@@ -365,7 +357,6 @@ class Database:
 			SQL += "where songid = %d" % theid
 		elif idtype == "playlistid":
 			SQL += ", playlistdata p where p.songid = s.songid and p.playlistid = %d order by p.indexid" % theid
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -373,7 +364,6 @@ class Database:
 		#Now grab metaartist related songs if artistid is given
 		if idtype == "artistid":
 			SQL = "select s.filename, s.songid, s.songlength, s.flags from songs s, albums a where s.metaartistid = %d and s.albumid = a.albumid order by a.year, a.albumname, s.tracknum, s.songname"
-			log.debug("sqlquery", SQL, theid)
 			cursor.execute(SQL, theid)
 			for row in cursor.fetchall():
 				log.debug("sqlresult", "Row: %s", row)
@@ -383,13 +373,11 @@ class Database:
 	def setQueueHistoryOnId(self, songid):
 		cursor = self.conn.cursor()
 		SQL = "INSERT INTO HISTORY (songid, type, time) VALUES (%s, 'q', %s)"
-		log.debug("sqlquery", SQL, songid, time.time())
 		cursor.execute(SQL, songid, time.time())
 
 	def createPlaylist(self, name):
 		cursor = self.conn.cursor()
 		SQL = "SELECT playlistid from playlists where name = %s"
-		log.debug("sqlquery", SQL, name)
 		cursor.execute(SQL, name)
 		exists = -1
 		for row in cursor.fetchall():
@@ -398,10 +386,8 @@ class Database:
 		if (exists == -1):
 			now=time.time()
 			SQL = "INSERT into playlists (name,userid,create_date,modified_date) values (%s,-1,%s,%s)"
-			log.debug("sqlquery", SQL, name, now, now)
 			cursor.execute(SQL, name, now, now)
 			SQL = "SELECT playlistid from playlists where name = %s"
-			log.debug("sqlquery", SQL, name)
 			cursor.execute(SQL, name)
 			for row in cursor.fetchall():
 				exists = row['playlistid']
@@ -412,10 +398,8 @@ class Database:
 	def removePlaylist(self, playlistid):
 		cursor = self.conn.cursor()
 		SQL = "delete from playlistdata where playlistid = %s"
-		log.debug("sqlquery", SQL, playlistid)
 		cursor.execute(SQL, playlistid)
 		SQL = "delete from playlists where playlistid = %s"
-		log.debug("sqlquery", SQL, playlistid)
 		cursor.execute(SQL, playlistid)
 
 	def listSongs(self, artistid=None, albumid=None, playlistid=None, anchor="", getgenres=True):
@@ -441,13 +425,11 @@ class Database:
 		if playlistid != None and playlistid != "":
 			SQL += " p.indexid,"	
 		SQL +=" a.year, lower(a.albumname), s.tracknum, s.songname"
-		log.debug("sqlquery", "query: %s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			self.fillSongHash(row, result, getgenres)
 		if artistid != None and artistid != "":
 			SQL = "SELECT s.songid, s.artistid, ar.artistname, s.albumid, s.tracknum, s.songname, s.filename, s.filesize, s.bitrate, s.songlength, s.timesplayed, a.albumname, a.year, s.metaartistid, m.artistname FROM songs s, albums a, artists ar LEFT OUTER JOIN artists m on s.metaartistid = m.artistid WHERE a.albumid = s.albumid and ar.artistid = s.artistid AND s.metaartistid = %s"
-			log.debug("sqlquery", SQL, artistid)
 			cursor.execute(SQL, artistid)
 			for row in cursor.fetchall():
 				self.fillSongHash(row, result)
@@ -472,7 +454,6 @@ class Database:
 		result = []
 		cursor = self.conn.cursor()
 		SQL = "SELECT g.genreid, g.genrename FROM genre_data d INNER JOIN genres g ON d.genreid = g.genreid WHERE d.songid = %s"
-		log.debug("sqlquery", "Query: "+SQL, songid)
 		cursor.execute(SQL, songid)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", row)
@@ -483,7 +464,6 @@ class Database:
 		result = []
 		cursor = self.conn.cursor()
 		SQL = "select count(*) as thecount, a.artistname from history h inner join songs s on h.songid = s.songid inner join artists a on a.artistid = s.artistid where h.type = 'p' group by a.artistname order by thecount desc, a.artistname asc limit %s"
-		log.debug("sqlquery", SQL, numbertoget)
 		cursor.execute(SQL, numbertoget)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -494,7 +474,6 @@ class Database:
 		result = []
 		cursor = self.conn.cursor()
 		SQL = "select count(*) as thecount, al.albumname, a.artistname from history h inner join songs s on h.songid = s.songid inner join albums al on s.albumid = al.albumid inner join artists a on al.artistid = a.artistid where h.type = 'p' group by a.artistname, al.albumname order by thecount desc, a.artistname asc, al.albumname asc limit %s"
-		log.debug("sqlquery", SQL, numbertoget)
 		cursor.execute(SQL, numbertoget)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -505,7 +484,6 @@ class Database:
 		result = []
 		cursor = self.conn.cursor()
 		SQL = "select count(*) as thecount, al.albumname, a.artistname, s.songname from history h inner join songs s on h.songid = s.songid inner join albums al on s.albumid = al.albumid inner join artists a on al.artistid = a.artistid where h.type = 'p' group by a.artistname, al.albumname, s.songname order by thecount desc, a.artistname asc, al.albumname asc, s.songname asc limit %s"
-		log.debug("sqlquery", SQL, numbertoget)
 		cursor.execute(SQL, numbertoget)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -516,19 +494,16 @@ class Database:
 		result = {}
 		cursor = self.conn.cursor()
 		SQL = "select count(*) as numartists from artists"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
 			result["numartists"] = int(row['numartists'])
 		SQL = "select count(*) as numalbums from albums"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
 			result["numalbums"] = int(row['numalbums'])
 		SQL = "select count(*) as numsongs, sum(filesize) as sumfilesize, sum(songlength) as sumsec, avg(filesize) as avgfilesize, avg(songlength) as avgsec from songs"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -538,13 +513,11 @@ class Database:
 			result["avgfilesize"] = float(row['avgfilesize'])
 			result["avgsec"] = float(row['avgsec'])
 		SQL = "select count(*) as songsplayed from history where type = 'p'"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
 			result["songsplayed"] = int(row['songsplayed'])
 		SQL = "select count(*) as songsstarted from history where type = 's'"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -556,7 +529,6 @@ class Database:
 		result = []
 		cursor = self.conn.cursor()
 		SQL = "SELECT filename, modified_date FROM songs ORDER BY filename"
-		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -615,7 +587,6 @@ class Database:
 
 		if filename not in self.i_songcache:
 			SQL = "insert into songs (songname, artistid, albumid, year, tracknum, filename, filesize, songlength, bitrate, metaartistid, create_date, modified_date, timesplayed, weight, flags) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0)"
-			log.debug("sqlquery", SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, bitrate, metaartistid, now, now)
 			cursor.execute(SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, bitrate, metaartistid, now, now)
 			self.getalbumstatus = True
 			sid = cursor.lastrowid
@@ -624,7 +595,6 @@ class Database:
 		else:
 			sid = self.i_songcache["filename"]
 			SQL = "update songs set modified_date = %s, songname = %s, artistid = %s, albumid = %s, year = %s, tracknum = %s, filename = %s, songlength = %s, bitrate = %s, metaartistid = %s, filesize = %s where songid = %s"
-			log.debug("sqlquery", SQL, now, songname, artistid, albumid, year, tracknum, filename, songlength, bitrate, metaartistid, statinfo.st_size, sid)
 			cursor.execute(SQL, now, songname, artistid, albumid, year, tracknum, filename, songlength, bitrate, metaartistid, statinfo.st_size, sid)
 			self.getalbumstatus = False
 		return sid
@@ -644,20 +614,17 @@ class Database:
 		cursor=self.import_cursor
 
 		SQL = "select artistname,artistid from artists"
-		log.debug("sqlquery", SQL)
 		cursor.execute(SQL)		
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "%s", row)
 			self.artistcache[row[0]] = int(row[1])
 		SQL = "select artistid,albumname,albumid from albums"
-		log.debug("sqlquery", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "%s", row)
 			self.albumcache[str(row[0])+row[1]] = int(row[2])
 
 		SQL = "select filename,songid from songs"
-		log.debug("sqlquery", SQL)
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "%s", row)
@@ -669,10 +636,8 @@ class Database:
 		cursor.begin()
 		try:
 			SQL = "DELETE FROM albums WHERE albumid NOT IN (SELECT albumid FROM songs)"
-			log.debug("sqlquery", "query:%s", SQL)
 			cursor.execute(SQL)
 			SQL = "DELETE FROM artists WHERE artistid NOT IN (SELECT artistid FROM songs) and artistid NOT IN (SELECT metaartistid as artistid FROM songs)"
-			log.debug("sqlquery", "query:%s", SQL)
 			cursor.execute(SQL)
 		except:
 			cusor.rollback()
@@ -738,7 +703,6 @@ class Database:
 				SQL = "DELETE FROM songs WHERE filename = %s"
 
 			if SQL!="":
-				log.debug("sqlquery", SQL, somesong)
 				cursor.execute(SQL, somesong)
 				result += 1
 		return result
@@ -746,31 +710,26 @@ class Database:
 	def playlistClear(self, playlistid):
 		cursor = self.conn.cursor()
 		SQL = "DELETE FROM playlistdata WHERE playlistid = %s"
-		log.debug("sqlquery", SQL, playlistid)
 		cursor.execute(SQL, playlistid)
 
 	def addSongToPlaylist(self, playlistid, songid):
 		cursor = self.conn.cursor()
 		#SQL = "INSERT INTO playlistdata (playlistid, songid) VALUES (%d, %d)" % (playlistid, songid)
 		SQL = "INSERT INTO playlistdata (playlistid, songid, indexid) values (%d,%d,(select count(playlistdataid) from playlistdata where playlistid = %s))"
-		log.debug("sqlquery", SQL, playlistid, songid, playlistid)
 		cursor.execute(SQL, playlistid, songid, playlistid)
 
 	def removeSongFromPlaylist(self, playlistid, indexid):
 		playlistdataid = 0
 		cursor = self.conn.cursor()
 		SQL = "DELETE from playlistdata where playlistid = %d and indexid = %s"
-		log.debug("sqlquery", SQL, playlistid, indexid)
 		cursor.execute(SQL, playlistid, indexid)
 		SQL = "UPDATE playlistdata set indexid = indexid - 1 where playlistid = %s and indexid > %s"
-		log.debug("sqlquery", SQL, playlistid, indexid)
 		cursor.execute(SQL, playlistid, indexid)
 
 	def moveSongInPlaylist(self, playlistid, index1, index2, swap=False):
 		songs = []
 		cursor = self.conn.cursor()
 		SQL = "SELECT songid from playlistdata where playlistid = %s order by indexid"
-		log.debug("sqlquery", SQL, playlistid)
 		cursor.execute(SQL, playlistid)
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
@@ -794,7 +753,6 @@ class Database:
 		cursor = self.import_cursor
 		if genrename not in self.genrecache:
 			SQL = "select genreid from genres where genrename = %s"
-			log.debug("sqlquery", SQL, genrename)
 			cursor.execute(SQL, genrename)
 			for row in cursor.fetchall():
 				log.debug("sqlresult", "%s", row)
@@ -802,18 +760,15 @@ class Database:
 			if gid == -1:
 				now = time.time()
 				SQL = "insert into genres (genrename, create_date) values (%s, %s)"
-				log.debug("sqlquery", SQL, genrename, now)
 				cursor.execute(SQL, genrename, now)
 				self.getgenrestatus = True
 				SQL = "select genreid from genres where genrename = %s"
-				log.debug("sqlquery", SQL, genrename)
 				cursor.execute(SQL, genrename)
 				for row in cursor.fetchall():
 					log.debug("sqlresult", "%s", row)
 					gid = row['genreid']
 				else:
 					SQL = "update genres set genrename = %s, modified_date = %s"
-				log.debug("sqlquery", SQL, genrename, now)
 				cursor.execute(SQL, genrename, now)
 				self.getgenrestatus = False
 			self.genrecache[genrename] = gid
@@ -830,7 +785,6 @@ class Database:
 		#See if this artist is already in the cache
 		if artistname not in self.artistcache:
 			#SQL = "select artistid from artists where artistname = %s"
-			#log.debug("sqlquery", SQL, artistname)
 			#cursor.execute(SQL, artistname)
 			#for row in cursor.fetchall():
 			#	log.debug("sqlresult", "Row: %s", row)
@@ -843,14 +797,12 @@ class Database:
 
 			if aid == -1:
 				SQL = "insert into artists (artistname, metaflag, create_date, modified_date) VALUES (%s, %s, %s, %s)"
-				log.debug("sqlquery", SQL, artistname, metaartist, now, now)
 				cursor.execute(SQL, artistname, int(metaartist), now, now)
 				self.getartiststatus = True
 				aid = cursor.lastrowid
 			#Not needed until we have genres and/or metaartists
 			else:
 				SQL = "update artists set metaflag = %s, modified_date = %s where artistid = %s"
-				log.debug("sqlquery", SQL, metaartist, now, aid)
 				cursor.execute(SQL, metaartist, now, aid)
 				self.getartiststatus = False
 			self.artistcache[artistname] = aid
@@ -866,7 +818,6 @@ class Database:
 		#See if this album is already in the cache
 		if str(str(artistid) + albumname) not in self.albumcache:
 			#SQL = "select albumid from albums where albumname = %s"
-			#log.debug("sqlquery", SQL, albumname)
 			#cursor.execute(SQL, albumname)
 			#for row in cursor.fetchall():
 			#	log.debug("sqlresult", "Row: %s", row)
@@ -874,7 +825,6 @@ class Database:
 			now=time.time()
 			if tid == -1:
 				SQL = "insert into albums (albumname, artistid, year, create_date, modified_date) VALUES (%s, %s, %s, %s, %s)"
-				log.debug("sqlquery", SQL, albumname, artistid, year, now, now)
 				cursor.execute(SQL, albumname, artistid, year, now, now)
 				self.getalbumstatus = True
 				tid = cursor.lastrowid
@@ -882,7 +832,6 @@ class Database:
 			else:
 				#TODO: Have to add genre code
 				SQL = "update albums set modified_date = %s, year = %s, artistid = %s where albumid = %s"
-				log.debug("sqlquery", SQL, now, year, artistid, tid)
 				cursor.execute(SQL, now, year, artistid, tid)
 				self.getalbumstatus = False
 			self.albumcache[str(artistid) + albumname] = tid
@@ -897,7 +846,6 @@ class Database:
 		filename = string.strip(filename)
 		cursor = self.import_cursor
 		#SQL = "select songid from songs where filename = %s"
-		#log.debug("sqlquery", SQL, filename)
 		#cursor.execute(SQL, filename)
 		#for row in cursor.fetchall():
 		#	log.debug("sqlresult", "Row: %s", row)
@@ -932,7 +880,6 @@ class Database:
 
 		if filename not in self.i_songcache:
 			SQL = "insert into songs (songname, artistid, albumid, year, tracknum, filename, filesize, songlength, bitrate, metaartistid, create_date, modified_date, timesplayed, weight, flags) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0)"
-			log.debug("sqlquery", SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, metadata['bitrate'], metaartistid, now, now)
 			cursor.execute(SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, metadata['bitrate'], metaartistid, now, now)
 			self.getalbumstatus = True
 			sid = cursor.lastrowid
@@ -940,7 +887,6 @@ class Database:
 		#TODO: Check to see if there are changes
 		else:
 			SQL = "update songs set modified_date = %s, songname = %s, artistid = %s, albumid = %s, year = %s, tracknum = %s, filename = %s, songlength = %s, bitrate = %s, metaartistid = %s, filesize = %s where songid = %s"
-			log.debug("sqlquery", SQL, now, songname, artistid, albumid, year, tracknum, filename, metadata['songlength'], metadata['bitrate'], metaartistid, statinfo.st_size, sid)
 			cursor.execute(SQL, now, songname, artistid, albumid, year, tracknum, filename, metadata['songlength'], metadata['bitrate'], metaartistid, statinfo.st_size, sid)
 			self.getalbumstatus = False
 		return sid

@@ -327,8 +327,8 @@ def process_changes(new_files, mod_files, del_files):
 
 	try:
 		while len(additions) > 0:
-			songs = additions[:100]
-			additions = additions[100:]
+			songs = additions[:200]
+			additions = additions[200:]
 			tmp = []
 			for i in songs:
 				for key in i.keys():

@@ -149,7 +149,7 @@ class AllStraightQueue(CustomQueue):
 	def __init__(self, manager, dbh, parent):
 		CustomQueue.__init__(self, manager, dbh, parent)
 		songs = dbh.listSongs(getgenres=False)
-		log.debug("queue", "Called listsongs and got %s", songs)
+		#log.debug("queue", "Called listsongs and got %s", songs)
 		for song in songs:
 			self.items.append(song)
 	# don't allow user to edit this queue; override the editing methods
@@ -225,7 +225,7 @@ class QueueManager:
 		log.debug("funcs", "QueueManager.getCurrentSong()")
 		if not self.usingendofqueue:
 			temp = self.songqueue.getCurrentSong()
-			log.debug("queue", "endofqueue not in use. checking songqueue and got %s", temp)
+			#log.debug("queue", "endofqueue not in use. checking songqueue and got %s", temp)
 			if temp is not None: return temp
 		log.debug("queue", "Updating endofqueue and using it")
 		self.updateEndOfQueue()

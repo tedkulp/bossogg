@@ -58,7 +58,7 @@ channels = (
 # a_c = { <file> : [ active_channels ], }
 # file = * for default.
 # 
-active_channels = { }
+active_channels = { "*":[] }
 
 class Filter(logging.Filter):
 	def filter(self, record):
@@ -96,7 +96,7 @@ class Logger(logging.Logger):
 		self.file.setFormatter(self.format)
 		self.addHandler(self.file)
 
-	def findCaller(self):
+	def findCaller(self, stack=0):
 		"""
 		Find the stack frame of the caller so that we can note the source
 		file name and line number.
@@ -109,14 +109,32 @@ class Logger(logging.Logger):
 			if filename in _srcfiles:
 				f = f.f_back
 				continue
+			for st in range(0, stack):
+				f = f.f_back
+			co = f.f_code
+			filename = os.path.normcase(co.co_filename)
 			return filename, f.f_lineno
 
 	def debug(self, channel, msg, *args, **kwargs):
-		try:
-			msg % args
-			self.log(logging.DEBUG, "|"+channel+"| "+msg, *args, **kwargs)
-		except:
-			self.exception("Format error in string")
+		if self.manager.disable >= DEBUG:
+			return
+		if DEBUG >= self.getEffectiveLevel():
+			try:
+				msg % args
+				apply(self._log, (DEBUG, "|"+channel+"| "+msg, args), kwargs)
+			except:
+				self.exception("Format error in string")
+
+	def _log(self, level, msg, args, exc_info=None, stack=1):
+		if _srcfile:
+			fn, lno = self.findCaller(stack=stack)
+		else:
+			fn, lno = "<unknown file>", 0
+		if exc_info:
+			exc_info = sys.exc_info()
+		record = self.makeRecord(self.name, level, fn, lno, msg, args, exc_info)
+		self.handle(record)
+
 
 logging.setLoggerClass(Logger)
 
