@@ -134,7 +134,7 @@ inline gint input_finished (void)
       ret = current_song->finished;
    } else {
       LOG ("current song is NULL");
-      ret = -1;
+      ret = 0;
    }
    g_mutex_unlock (current_mutex);
    return ret;
@@ -228,9 +228,11 @@ void input_plugin_set (input_plugin_s *plugin)
 
 void input_plugin_set_end_of_file (void)
 {
-   g_mutex_lock (current_mutex);
-   current_song->finished = 1;
-   g_mutex_unlock (current_mutex);
+   if (current_song != NULL) {
+      g_mutex_lock (current_mutex);
+      current_song->finished = 1;
+      g_mutex_unlock (current_mutex);
+   } 
 }
 
 gint64 input_plugin_samples_total (void)

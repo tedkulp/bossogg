@@ -92,6 +92,9 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *e
    *sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
    *size = ov_read (&p_ogg->vorbis_file, ret, BUF_SIZE / 2, 0, 2, 1, &current);
 
+   if (*size == OV_EBADLINK || *size == OV_HOLE)
+      *size = 0;
+   
    if (*size < 1) {
       *sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
       *eof = 1;

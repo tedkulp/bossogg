@@ -128,7 +128,7 @@ static void output_plugin_write_chunk_all_helper (gpointer item, gpointer user_d
 }
 
 /* write the buffer to all output plugins */
-void output_plugin_write_chunk_all (guchar *buffer, gint size)
+void output_plugin_write_chunk_all (gchar *buffer, gint size)
 {
    write_chunk_all_s s;
    
@@ -139,7 +139,7 @@ void output_plugin_write_chunk_all (guchar *buffer, gint size)
 
    s.buffer = buffer;
    s.size = size;
-   if (!buffer || size < 0)
+   if (!buffer || size <= 0)
       return;
    g_slist_foreach (output_list, output_plugin_write_chunk_all_helper, &s);
    

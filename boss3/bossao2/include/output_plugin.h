@@ -46,7 +46,7 @@ void output_plugin_close (output_plugin_s *plugin);
 output_plugin_s *output_plugin_find (gchar *filename);
 void output_plugin_open_all (PyObject *cfgparser);
 void output_plugin_close_all (void);
-void output_plugin_write_chunk_all (guchar *buffer, gint size);
+void output_plugin_write_chunk_all (gchar *buffer, gint size);
 
 gint output_open (PyObject *cfgparser);
 void output_close (void);

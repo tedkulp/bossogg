@@ -121,7 +121,7 @@ class Player(threading.Thread):
 				self.playedflag = 0
 
 		if bossao.bossao_finished() == 1:
-			#self.state = "NEXT"
+			self.state = "NEXT"
 			self.handleNextCommand()
 
 	def _update_status(self):
@@ -129,7 +129,7 @@ class Player(threading.Thread):
 			self.shutdown = 1
 			self.state = "SHUTDOWN"
 		else:
-			if self.state != "STOPPED" and self.state != "SHUTDOWN":
+			if self.state != "SHUTDOWN":
 				self.updateTimeInfo()
 
 	def initializeao(self):
@@ -160,7 +160,7 @@ class Player(threading.Thread):
 			self.songid = self.songdetails["songid"]
 			self.state = "PLAYING"
 			self.dbh.incrementTimesStarted(self.songid);
-			self.sleeplength = .1
+			self.sleeplength = .3
 
 	def handleStopCommand(self):
 		bossao.bossao_stop ()
@@ -185,7 +185,7 @@ class Player(threading.Thread):
 				self.sleeplength = 1
 			else:
 				self.state = "PLAYING"
-				self.sleeplength = .1
+				self.sleeplength = .3
 
 	def handleNextCommand(self):
 		self.songqueue.next()
@@ -226,7 +226,7 @@ class Player(threading.Thread):
 				self.state = "STOPPED"
 				self.sleeplength = 1
 			else:
-				self.sleeplength = .1
+				self.sleeplength = .3
 				self.startPlaying()
 			log.debug("audio", "Starting player loop")
 

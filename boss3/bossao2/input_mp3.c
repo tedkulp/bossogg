@@ -211,7 +211,7 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size, gint64 *sample_nu
    static gint i;
    static gint ret;
    static struct audio_dither dither;
-   guchar *out_ptr = buffer;
+   gchar *out_ptr = buffer;
 
    mad_timer_add (&p_mp3->mp3_timer, p_mp3->mp3_frame.header.duration);
    mad_synth_frame (&p_mp3->mp3_synth, &p_mp3->mp3_frame);
@@ -239,6 +239,8 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size, gint64 *sample_nu
    if (ret != DECODE_BREAK) {
       *sample_num = p_mp3->mp3_frame_count * 32 * MAD_NSBSAMPLES(&p_mp3->mp3_frame.header);   
       *size = p_mp3->mp3_synth.pcm.length * 4;
+   } else {
+      *size = 0;
    }
    return ret;
 }
@@ -260,7 +262,6 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *e
       *size = buf_size;
       *sample_num = mp3->samples_total;
       //g_free (buffer);
-      return buffer;
    } else
       eof = 0;
    

@@ -25,7 +25,16 @@ typedef struct {
    gint count;
 } thbuf_sem_t;
 
+typedef struct chunk_t {
+   guchar *chunk;
+   gint sample_num;
+   gint size;
+   gchar eof;
+   //GMutex *mutex;
+} chunk_s;
+
 typedef void (*thbuf_free_callback_t)(void *p);
+
 
 typedef struct thbuf_ {
    gint size;

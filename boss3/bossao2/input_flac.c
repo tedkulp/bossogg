@@ -38,7 +38,7 @@ typedef struct private_flac_t {
    gint64 samples_current;
    FLAC__FileDecoder *decoder;
    thbuf_sem_t *sem;
-   gushort *buffer;
+   gshort *buffer;
    gint buffer_size;
    gint was_metadata;
    gint64 total_samples;
@@ -95,19 +95,21 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *e
    } else
       *eof = 0;
 
+   *size = p_flac->buffer_size;
+   *sample_num = p_flac->samples_current;
+
    if (p_flac->samples_current != p_flac->samples_total)
       semaphore_p (p_flac->sem);
    else {
-      LOG ("avoided deadlock");
+      LOG ("setting eof early?");
+      *eof = 1;
    }
-   *size = p_flac->buffer_size;
-   *sample_num = p_flac->samples_current;
    if (*size == 0) {
       //song->finished = 1;
       LOG ("song is finished 2");
       //return NULL;
    }
-   return (gchar *)p_flac->buffer;
+   return p_flac->buffer;
 }
 
 static void error_callback (const FLAC__FileDecoder *decoder,
@@ -137,10 +139,15 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
 
    gint size = frame->header.blocksize * frame->header.channels;
    gint samples = frame->header.blocksize;
-   p_flac->buffer = g_malloc (sizeof (gushort) * samples * frame->header.channels);
-   p_flac->buffer_size = samples * frame->header.channels * sizeof (gushort);
+   if (samples) {
+      p_flac->buffer_size = samples * frame->header.channels * sizeof (gshort);
+      p_flac->buffer = g_malloc (sizeof (gshort) * samples * frame->header.channels);
+   } else {
+      p_flac->buffer_size = 0;
+      return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
+   }
    gint c_samp, c_chan, d_samp;
-   gushort *buf = p_flac->buffer;
+   gshort *buf = p_flac->buffer;
    
    for (c_samp = d_samp = 0; c_samp < frame->header.blocksize; c_samp++) {
       for (c_chan = 0; c_chan < frame->header.channels; c_chan++, d_samp++) {
@@ -148,10 +155,10 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
       }
    }
 #ifdef WORDS_BIGENDIAN
-  guchar *buf_pos = buf; 
-  guchar *buf_end = buf + sizeof (buf);
+  gchar *buf_pos = buf; 
+  gchar *buf_end = buf + sizeof (buf);
   while (buf_pos < buf_end) {
-    guchar p = *buf_pos;
+    gchar p = *buf_pos;
     *buf_pos = *(buf_pos + 1);
     *(buf_pos + 1) = p;
     buf_pos += 2;
