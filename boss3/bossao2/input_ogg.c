@@ -100,6 +100,7 @@ chunk_s *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar 
       chunk->size = 0;
       g_free (chunk->chunk);
       chunk->chunk = NULL;
+      return chunk;
    }
    
 /*

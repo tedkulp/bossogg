@@ -86,7 +86,9 @@ chunk_s *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar 
    FLAC__file_decoder_process_single (decoder);
    chunk_s *chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
 
-   if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE) {
+   gint status = FLAC__file_decoder_get_state (decoder);
+   if (status == FLAC__FILE_DECODER_END_OF_FILE ||
+       status == FLAC__STREAM_DECODER_WRITE_STATUS_ABORT) {
       //song->finished = 1;
       //*sample_num = p_flac->samples_total;
       //*size = 0;

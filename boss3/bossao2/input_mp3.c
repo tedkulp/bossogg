@@ -241,15 +241,16 @@ static gint mp3_read (song_s *song, chunk_s *chunk)
       }
    }
 
+   //if (ret != DECODE_BREAK) {
+   chunk->sample_num = p_mp3->mp3_frame_count * 32 * MAD_NSBSAMPLES(&p_mp3->mp3_frame.header);   
+   chunk->size = p_mp3->mp3_synth.pcm.length * 4;
+      //} else {
+   // chunk->size = 0;
+   //}
+
    while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT) {
    }
 
-   if (ret != DECODE_BREAK) {
-      chunk->sample_num = p_mp3->mp3_frame_count * 32 * MAD_NSBSAMPLES(&p_mp3->mp3_frame.header);   
-      chunk->size = p_mp3->mp3_synth.pcm.length * 4;
-   } else {
-      chunk->size = 0;
-   }
    return ret;
 }
 
