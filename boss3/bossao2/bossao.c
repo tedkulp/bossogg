@@ -27,13 +27,13 @@
 #import "thbuf.h"
 
 #define THBUF_SIZE 256
-gchar chunks[THBUF_SIZE * BUF_SIZE];
+static gchar chunks[THBUF_SIZE * BUF_SIZE];
 
-thbuf_t *thbuf;
-GMutex *pause_mutex, *produce_mutex;
-GThread *producer, *consumer;
-gint producer_pos = 0;
-gint consumer_pos = 0;
+static thbuf_t *thbuf;
+static GMutex *pause_mutex, *produce_mutex;
+static GThread *producer, *consumer;
+static gint producer_pos = 0;
+static gint consumer_pos = 0;
 
 static gpointer producer_thread (gpointer p)
 {
@@ -42,20 +42,22 @@ static gpointer producer_thread (gpointer p)
 
    while (1) {
       g_mutex_lock (produce_mutex);
-      chunk = input_play_chunk (&size, &chunks[producer_pos * BUF_SIZE]);
-      //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
+      //LOG ("about to produce %d", producer_pos);
+      chunk = input_play_chunk (&size, NULL/*&chunks[producer_pos * BUF_SIZE]*/);
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
 	 g_usleep (10000);
 	 continue;
       }
-      g_mutex_unlock (produce_mutex);
       thbuf_produce (thbuf, chunk, size, producer_pos);
+      //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
       if (producer_pos >= THBUF_SIZE) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
 	 producer_pos = 0;
       }
+      g_mutex_unlock (produce_mutex);
+      g_thread_yield ();
    }
 
    return NULL;
@@ -69,9 +71,8 @@ static gpointer consumer_thread (gpointer p)
 
    while (1) {
       g_mutex_lock (pause_mutex);
-      data = thbuf_consume (thbuf, &size, consumer_pos);
       //LOG ("consumed %p %d %d %d", data, size, producer_pos, consumer_pos);
-      g_mutex_unlock (pause_mutex);
+      data = thbuf_consume (thbuf, &size, consumer_pos);
       chunk = (gchar *)data;
       if (chunk == NULL || size == 0) {
 	 LOG ("got a NULL chunk %p %d...", chunk, size);
@@ -85,6 +86,8 @@ static gpointer consumer_thread (gpointer p)
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
 	 consumer_pos = 0;
       }
+      g_mutex_unlock (pause_mutex);
+      g_thread_yield ();
    }
 
    return NULL;
@@ -117,19 +120,28 @@ void bossao_thread_init (void)
 
 inline void bossao_pause (void)
 {
+   g_mutex_lock (produce_mutex);
    g_mutex_lock (pause_mutex);
 }
 
 inline void bossao_unpause (void)
 {
+   g_mutex_unlock (produce_mutex);
    g_mutex_unlock (pause_mutex);
 }
 
 inline void bossao_stop (void)
 {
+   g_mutex_lock (produce_mutex);
+   //LOG ("stopped produce mutex");
    g_mutex_lock (pause_mutex);
+   //LOG ("stopped pause mutex");
    thbuf_clear (thbuf);
+   //LOG ("cleared");
    input_close ();
+   //LOG ("closed");
+   consumer_pos = 0;
+   producer_pos = 0;
 }
 
 /* allocate the song, get the plugins ready */
@@ -186,10 +198,14 @@ gint bossao_play (gchar *filename)
    input_plugin_s *plugin = input_plugin_find (filename);
    input_plugin_set (plugin);
    input_open (filename);
+   //g_usleep (1000);
    LOG ("'%s' has %f total time", filename, input_time_total ());
    g_mutex_unlock (produce_mutex);
-   g_usleep (100000);
+   //LOG ("produce mutex unlocked");
+   g_usleep (10000);
+   //LOG ("done sleeping");
    g_mutex_unlock (pause_mutex);
+   //LOG ("pause mutex unlocked");
    
    return 0;
 }

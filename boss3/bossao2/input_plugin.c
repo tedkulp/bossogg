@@ -85,7 +85,7 @@ inline gdouble input_time_current (void)
 
 inline gchar *input_play_chunk (gint *size, gchar *buf)
 {
-   if (current_song != NULL)
+   if (current_song != NULL && current_plugin != NULL)
       return current_plugin->input_play_chunk (current_song, size, buf);
    else {
       LOG ("current song is NULL");
@@ -114,7 +114,7 @@ inline gint input_close (void)
 }
 
 inline gchar *input_name (void)
-{
+{ 
    return current_plugin->input_name ();
 }
 

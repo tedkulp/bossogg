@@ -236,6 +236,10 @@ gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
 {
    private_mp3_s *p_mp3 = (private_mp3_s *)song->private;
    gchar *buffer = (gchar *)g_malloc (BUF_SIZE);
+   if (buffer == NULL) {
+      LOG ("BOOO a NULL malloc!");
+      return NULL;
+   }
    gint buf_size;
 
    if (mp3_read (song, buffer, &buf_size) == DECODE_BREAK)
@@ -251,6 +255,7 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
    struct stat filestat;
    int ret;
    private_mp3_s *p_mp3 = (private_mp3_s *)g_malloc (sizeof (private_mp3_s));
+   memset (p_mp3, 0, sizeof (private_mp3_s));
    song_s *song = song_new (plugin, p_mp3);
    
    p_mp3->mp3_total_time = 0.0;
@@ -265,15 +270,17 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
 
    if ((p_mp3->mp3_file = fopen (filename, "r")) <= 0) {
       LOG ("Problem opening file '%s'", filename);
-      song_free (p_mp3);
+      song_free (song);
       return NULL;
    }
    fstat (fileno (p_mp3->mp3_file), &filestat);
    while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT)
-      ; /* do nothing */
+      ; // do nothing 
 
    p_mp3->mp3_total_time = (filestat.st_size * 8.0) /
       p_mp3->mp3_frame.header.bitrate;
+
+   LOG ("mp3 file '%s' opened");
 
    return song;
 }

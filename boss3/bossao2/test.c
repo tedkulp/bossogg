@@ -247,6 +247,21 @@ int main (int argc, char *argv[])
    bossao_new (NULL, NULL);
    bossao_play (argv[1]);
 
+   sleep (2);
+
+   LOG ("pausing");
+   bossao_pause ();
+   sleep (1);
+   LOG ("unpausing");
+   bossao_unpause ();
+
+   sleep (2);
+
+   LOG ("stopping");
+   bossao_stop ();
+   LOG ("stopped");
+   bossao_play (argv[2]);
+
    LOG ("joining..");
    bossao_join ();
 

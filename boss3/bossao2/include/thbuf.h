@@ -20,7 +20,7 @@
 typedef struct {
    GMutex *mutex;
    GCond *cond;
-   int count;
+   gint count;
 } semaphore_t;
 
 typedef struct {
