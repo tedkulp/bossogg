@@ -65,7 +65,7 @@ static gpointer producer_thread (gpointer p)
    guchar *chunk;
    chunk_s *cur_chunk;
    gint64 sample_num;
-   gchar eof;
+   gchar eof = 0;
 
    g_usleep (10000);
    
@@ -86,6 +86,8 @@ static gpointer producer_thread (gpointer p)
       }
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
+	 if (eof)
+	    input_plugin_set_end_of_file ();
 	 //g_free (cur_chunk);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
 	 producer_pos++;
@@ -140,7 +142,7 @@ static gpointer consumer_thread (gpointer p)
       }
       if (chunk->eof) {
 	 LOG ("got EOF");
-	 input_plugin_set_end_of_file ();
+	 //input_plugin_set_end_of_file ();
 	 g_usleep (100000);
 	 continue;
       }
