@@ -136,6 +136,17 @@ class DB:
 
 	 Returns:
 	 * numsongs - int
+
+	 db("getmetadata"): Returns the metadata information from
+	 the tags contained in the file.
+
+	 Parameters:
+	 * Array
+	   * filename - string(base64)
+
+	 Returns:
+	 * metadata - Song info
+
 	"""
 
 	def handleRequest(self, cmd, argstuple):
@@ -160,6 +171,9 @@ class DB:
 				elif (cmd == "importcancel"):
 					cmdint.db.importcancel()
 					return 1
+				elif (cmd == "importnewsongs"):
+					if len(args) > 0:
+						return cmdint.db.importnewsongs(args[0])
 				elif (cmd == "importsong"):
 					if len(args) > 0:
 						if type(args[0]) is DictType:
@@ -197,6 +211,18 @@ class DB:
 				elif cmd == "upload":
 					if len(args) > 0:
 						thehash = cmdint.db.importupload(UTFstring.decode(args[0]))
+						for i in thehash:
+							if isinstance(thehash[i], UnicodeType) or isinstance(thehash[i], StringType):
+								tmp = UTFstring.encode(thehash[i])
+								thehash[i] = tmp
+						return thehash
+					else:
+						#TODO: Make an error fault
+						pass
+				elif cmd == "getmetadata":
+					log.debug("import", "Got to getmetadata check")
+					if len(args) > 0:
+						thehash = cmdint.db.getmetadata(UTFstring.decode(args[0]))
 						for i in thehash:
 							if isinstance(thehash[i], UnicodeType) or isinstance(thehash[i], StringType):
 								tmp = UTFstring.encode(thehash[i])

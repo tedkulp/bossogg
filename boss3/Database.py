@@ -551,6 +551,63 @@ class Database:
 			result.append({"filename":row['filename'],"modifieddate":row['modified_date']})
 		return result
 
+	def getmetadata(self, filename):
+		log.debug("funcs", "Database.getmetadata(%s)", filename)
+		return getTag(filename)
+		
+
+	def importNewSongs(self, songs):
+		log.debug("funcs", "Database.importNewSongs()")
+
+		for song in songs:
+			log.debug("import", "Importing song %s", song["filename"])
+			genreid = -1
+			if 'genre' in song.keys():
+				genreid = self._getGenre(self.checkBinary(song['genre']))
+			artistid = self._getArtist(self.checkBinary(song['artistname']),False)
+			metaartistid = -1
+			if 'metaartistname' in song.keys():
+				metaartistid = self._getArtist(self.checkBinary(song['metaartistname']),True)
+			albumid = self._getAlbum(self.checkBinary(song['albumname']), artistid, song['year'])
+			songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid,song['year'],metaartistid, song["bitrate"], song["songlength"])
+
+		return True
+
+
+	def _getNSong(self, songname, artistid, filename, tracknum, albumid="", year="", metaartistid=-1, genreid=-1, bitrate=-1, songlength=-1):
+		log.debug("funcs", "Database._getNSongs()")
+		sid = -1
+		songname = string.strip(songname)
+		filename = string.strip(filename)
+		cursor = self.import_db["cursor"]
+
+		statinfo = os.stat(filename)
+		if songlength != -1 and str(songlength) != 'inf':
+			songlength = int(songlength)
+		else:
+			songlength = 0
+		now = time.time()
+		artistid = int(artistid)
+		albumid = int(albumid)
+		year = int(year)
+
+		if filename not in self.i_songcache:
+			SQL = "insert into songs (songname, artistid, albumid, year, tracknum, filename, filesize, songlength, bitrate, metaartistid, create_date, modified_date, timesplayed, weight, flags) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 0, 0, 0)"
+			log.debug("sqlquery", SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, bitrate, metaartistid, now, now)
+			cursor.execute(SQL, songname, artistid, albumid, year, tracknum, filename, statinfo.st_size, songlength, bitrate, metaartistid, now, now)
+			self.getalbumstatus = True
+			sid = cursor.lastrowid
+			self.i_songcache[filename] = sid
+		#TODO: Check to see if there are changes
+		else:
+			sid = self.i_songcache["filename"]
+			SQL = "update songs set modified_date = %s, songname = %s, artistid = %s, albumid = %s, year = %s, tracknum = %s, filename = %s, songlength = %s, bitrate = %s, metaartistid = %s, filesize = %s where songid = %s"
+			log.debug("sqlquery", SQL, now, songname, artistid, albumid, year, tracknum, filename, songlength, bitrate, metaartistid, statinfo.st_size, sid)
+			cursor.execute(SQL, now, songname, artistid, albumid, year, tracknum, filename, songlength, bitrate, metaartistid, statinfo.st_size, sid)
+			self.getalbumstatus = False
+		return sid
+
+
 	def importStart(self):
 		log.debug("funcs", "Database.importStart()")
 		session = Session()
@@ -565,7 +622,7 @@ class Database:
 			raise
 
 		self.import_db = {}
-		self.import_db["connection"] = sqlite.connect(db=self.dbname, mode=0755, autocommit=True)
+		self.import_db["connection"] = sqlite.connect(db=self.dbname, mode=0755, autocommit=False)
 		self.import_db["cursor"] = self.import_db["connection"].cursor()
 		#self.import_db["cursor"].nolock=1
 		cursor=self.import_db["cursor"]
@@ -599,7 +656,7 @@ class Database:
 		SQL = "DELETE FROM artists WHERE artistid NOT IN (SELECT artistid FROM songs) and artistid NOT IN (SELECT metaartistid as artistid FROM songs)"
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
-		#self.import_db["connection"].commit()
+		self.import_db["connection"].commit()
 		self.import_db["connection"].close()
 		self.import_db = None
 		log.debug("import", "Import complete, loading song cache (before %d)", len(self.songcache))
@@ -611,7 +668,7 @@ class Database:
 
 	def importCancel(self):
 		log.debug("funcs", "Database.importCancel()")
-		#self.import_db["connection"].rollback()
+		self.import_db["connection"].rollback()
 		self.import_db["connection"].close()
 		self.import_db = None
 
@@ -868,6 +925,7 @@ class Database:
 			cursor.execute(SQL, now, songname, artistid, albumid, year, tracknum, filename, metadata['songlength'], metadata['bitrate'], metaartistid, statinfo.st_size, sid)
 			self.getalbumstatus = False
 		return sid
+
 
 	def checkBinary(self, datatocheck):
 		return UTFstring.decode(datatocheck)

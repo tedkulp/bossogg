@@ -28,7 +28,7 @@ def decode(utfbin):
 			log.debug("utf", "returning: ''")
 			return ''
 		else:
-			log.debug("utf", "returning: '%s'" % utfbin.data)
+			log.debug("utf", "returning: '%s'", utfbin.data)
 			return utfbin.data
 	else:
 		#if isinstance(utfbin,types.StringType):

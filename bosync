@@ -6,7 +6,7 @@
 
 import sys, os, string, types, getopt, socket, re, time
 from stat import *
-from boss3.util import bosslog
+from boss3.util import bosslog, UTFstring
 from boss3.xmlrpc import bossxmlrpclib as xmlrpclib
 
 log = bosslog.getLogger()
@@ -212,7 +212,8 @@ def get_file_list(arg=0, dirname=0, names=0):
 
 def file_info(file):
 	global comp
-	info = { 'artistname':'',
+	info = { }
+	tmp = { 'artistname':'',
 			 'metaartistname':'',
 			 'albumname':'',
 			 'year':0000,
@@ -257,12 +258,12 @@ def file_info(file):
 			readline.set_completer(None)
 		info["year"] = int(raw_input("Year: "))
 		info["tracknum"] = int(raw_input("Track Number: "))
-		info["Song Title"] = raw_input("Song Title: ")
+		info["songname"] = raw_input("Song Title: ")
 		if readline:
 			readline.set_completer(comp.artist)
-		info["Meta Artist"] = raw_input("Song Artist Name: ")
+		info["metaartistname"] = raw_input("Song Artist Name: ")
 
-		return info
+	return info
 	
 
 def progress_meter(count, total):
@@ -295,8 +296,8 @@ def progress_meter(count, total):
 
 def process_changes(new_files, mod_files, del_files):
 	global rpc
-	if not config["noop"]:
-		rpc.db("importstart")
+	additions = []
+	
 
 	try:
 		# New/Modified Files
@@ -305,22 +306,35 @@ def process_changes(new_files, mod_files, del_files):
 			display("Adding/Updating files: %d files" % total)
 			cnt = 0
 			errors = []
+			log.debug("import", "Starting metadata loop %d", time.time())
 			for file in new_files+mod_files:
 				cnt += 1
 				progress_meter(cnt, total)
 				time.sleep(0.02)
+				metadata = rpc.db("getmetadata", file)
+				for key in metadata.keys():
+					metadata[key] = UTFstring.decode(metadata[key])
 				sinfo = file_info(file)
-				log.debug("import", "Importing %s", str(sinfo))
-				if not config["noop"]:
-					try:
-						rpc.db("importsong", sinfo)
-					except:
-						log.exception("Import returned error:")
+				metadata.update(sinfo)
+				metadata["filename"] = file
+				additions.append(metadata)
 
-			#if len(errors):
-			#	log.error("There were errors importing some songs:")
-			#	log.error(string.join(errors, "\n"))
+			log.debug("import", "Starting song import %d", time.time())
 
+			if not config["noop"]:
+				rpc.db("importstart")
+
+			while len(additions) > 0:
+				songs = additions[:100]
+				additions = additions[100:]
+				rpc.db("importnewsongs", songs)
+
+			log.debug("import", "Import complete %d", time.time())
+
+			if not config["noop"]:
+				rpc.db("importend")
+					
+			
 		if del_files:
 			display("Deleting files: %d files removed from database" % len(del_files))
 			if not config["noop"]:
@@ -328,11 +342,10 @@ def process_changes(new_files, mod_files, del_files):
 	except:
 		log.exception("Got exception during processing of data")
 		log.debug("import", "Aborting import. Canceling")
-		rpc.db("importcancel")
+		if not config["noop"]:
+			rpc.db("importcancel")
 		return
 
-	if not config["noop"]:
-		rpc.db("importend")
 
 def print_pretty_options():
 	optstr = {}

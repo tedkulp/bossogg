@@ -500,11 +500,17 @@ class DB:
 	def importsongs(self, arrayofsongs):
 		return self.dbh.importSongs(arrayofsongs)
 
+	def importnewsongs(self, arrayofsongs):
+		return self.dbh.importNewSongs(arrayofsongs)
+
 	def importdelete(self, arrayofsongs):
 		return self.dbh.importDelete(arrayofsongs)
 
 	def importupload(self, filename, songdata=None):
 		return self.dbh.importUpload(filename, songdata)
+
+	def getmetadata(self, filename):
+		return self.dbh.getmetadata(filename)
 
 	def getCDDB(self, device):
 		return self.dbh.getCDDB(device)
