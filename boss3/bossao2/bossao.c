@@ -79,6 +79,7 @@ static gpointer producer_thread (gpointer p)
       if (eof == -1) {
 	 LOG ("waiting on eof sem");
 	 semaphore_p (eof_sem);
+	 eof = 0;
       }
       
       g_mutex_lock (produce_mutex);
