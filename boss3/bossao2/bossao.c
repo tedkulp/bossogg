@@ -139,6 +139,7 @@ static gpointer consumer_thread (gpointer p)
       consumer_pos %= THBUF_SIZE;
       if (chunk->eof) {
 	 LOG ("got EOF");
+	 input_plugin_set_end_of_file ();
 	 g_usleep (100000);
 	 continue;
       }
