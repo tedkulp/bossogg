@@ -81,13 +81,13 @@ static gpointer producer_thread (gpointer p)
    
    g_usleep (10000);
 
-   while (1) {
-      if (eof == -1) {
-	 LOG ("waiting on eof sem");
-	 semaphore_p (eof_sem);
-	 eof = 0;
-      }
+   if (eof == -1) {
+      LOG ("waiting on eof sem");
+      semaphore_p (eof_sem);
+      eof = 0;
+   }
       
+   while (1) {
       //g_mutex_lock (produce_mutex);
       chunk = input_play_chunk (&size, &sample_num, &eof);
       //g_mutex_unlock (produce_mutex);
@@ -109,7 +109,7 @@ static gpointer producer_thread (gpointer p)
       cur_chunk->eof = eof;
       if (quit) {
 	 g_usleep (100000);
-	 thbuf_produce (thbuf, cur_chunk);
+	 //thbuf_produce (thbuf, cur_chunk);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
@@ -126,12 +126,13 @@ static gpointer producer_thread (gpointer p)
       }
 
       last_sample_num = sample_num;
-      
+      /*
       if (quit) {
 	 g_usleep (10000);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
+      */
    }
 
    return NULL;
@@ -144,6 +145,8 @@ static gpointer consumer_thread (gpointer p)
    gint count;
 
    g_usleep (100000);
+
+   semaphore_p (eof_sem);
    
    while (1) {
       //LOG ("consuming");
@@ -166,8 +169,9 @@ static gpointer consumer_thread (gpointer p)
 	      (gint)input_plugin_samples_total (), chunk->eof);
 	 if (last_sample_num == chunk->sample_num) {
 	    LOG ("was eof?: %d", chunk->eof);
-	    input_plugin_set_end_of_file ();
-	    g_usleep (100000);
+	    //input_plugin_set_end_of_file ();
+	    //g_usleep (100000);
+	    //semaphore_p (eof_sem);
 	 }
 	 last_sample_num = chunk->sample_num;
 	 g_usleep (10000);
@@ -175,12 +179,13 @@ static gpointer consumer_thread (gpointer p)
 	    LOG ("wasn't eof");
 	    //g_free (chunk);
 	    continue;
-	 } 
+	 }
       }
       if (chunk->eof) {
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
-	 g_usleep (10000);
+	 semaphore_p (eof_sem);
+	 //g_usleep (10000);
 	 //g_free (chunk);
 	 continue;
       }
@@ -199,7 +204,7 @@ static gpointer consumer_thread (gpointer p)
       //g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
-	 thbuf_consume (thbuf, &count);
+	 //thbuf_consume (thbuf, &count);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
@@ -281,6 +286,7 @@ void bossao_stop (void)
    LOG ("cleared");
    input_close ();
    LOG ("closed");
+   eof_sem->count = 0;
 }
 
 /* allocate the song, get the plugins ready */
@@ -354,6 +360,7 @@ gint bossao_play (gchar *filename)
    input_plugin_set (plugin);
    input_open (plugin, filename);
    stopped = 0;
+   semaphore_v (eof_sem);
    semaphore_v (eof_sem);
    //g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill

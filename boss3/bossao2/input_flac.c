@@ -105,7 +105,7 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *e
    if (*size == 0) {
       //song->finished = 1;
       LOG ("song is finished 2");
-      return NULL;
+      //return NULL;
    }
    return (gchar *)p_flac->buffer;
 }
@@ -165,12 +165,12 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
   if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE) {
      //song->finished = 1;
      LOG ("song is finished 3");
-     semaphore_v (p_flac->sem);
+     //semaphore_v (p_flac->sem);
   }
   if (p_flac->samples_current  >= p_flac->samples_total) {
      LOG ("song is finished 4");
      //song->finished = 1;
-     semaphore_v (p_flac->sem);
+     //semaphore_v (p_flac->sem);
   }
   
   semaphore_v (p_flac->sem);
