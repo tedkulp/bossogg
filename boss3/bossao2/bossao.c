@@ -114,7 +114,6 @@ static gpointer producer_thread (gpointer p)
 	 g_thread_exit (NULL);
       }
       //LOG ("producing");
-      if (p)
       g_mutex_lock (produce_mutex);
       buf_p = (void *)thbuf_produce (thbuf, cur_chunk);
       g_mutex_unlock (produce_mutex);
