@@ -34,6 +34,6 @@
 // get the filename of the current playing file
    char *bossao_filename (void);
 // get the current volume
-   gint bossao_getvol (void);
+   int bossao_getvol (void);
 // set the current volume
-   void bossao_setvol (gint vol);
+   void bossao_setvol (int vol);

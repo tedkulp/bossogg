@@ -277,13 +277,21 @@ Percentage played: %5.1d	Times played: %s" % (s['songid'], s['tracknum'], util.U
 		print "Control commands: play, stop, pause, next"
 
 	def do_set(self, args):
-		if args == "shutdown":
+		cmdargs = string.split (args, " ", 2)
+		cmd = cmdargs[0]
+		print "len", len (cmdargs)
+		if cmd == "shutdown":
 			if self.server.set("shutdown"):
 				print "server has shutdown"
 			else:
 				print "There was an error"
+		elif cmd == "volume" and len (cmdargs) == 2:
+			if self.server.set ("volume", int(cmdargs[1])):
+				print "volume set"
+			else:
+				print "There was an error setting volume"
 		else:
-			print "Usage: set shutdown"
+			print "Usage: set shutdown | volume"
 
 	def help_set(self):
 		print "Set commands: shutdown"
