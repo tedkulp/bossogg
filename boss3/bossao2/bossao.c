@@ -381,7 +381,7 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
    
    init_plugins (cfgparser);
 
-   output_plugin_open_all (NULL);
+   output_plugin_open_all (cfgparser);
 
    //pause_mutex = g_mutex_new ();
    //prod_pause_sem = semaphore_new (0);
