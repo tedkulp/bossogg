@@ -194,8 +194,8 @@ static gpointer consumer_thread (gpointer p)
       //LOG ("about to play %p of %d size", chunk->chunk, chunk->size);
       g_mutex_lock (pause_mutex);
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
-      g_mutex_unlock (pause_mutex);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
+      g_mutex_unlock (pause_mutex);
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
