@@ -86,7 +86,7 @@ static gpointer producer_thread (gpointer p)
       }
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
-	 g_free (cur_chunk);
+	 //g_free (cur_chunk);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
 	 producer_pos++;
 	 producer_pos %= THBUF_SIZE;
