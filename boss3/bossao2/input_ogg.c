@@ -84,31 +84,52 @@ gdouble _input_time_current (song_s *song)
 }
 
 /* play a chunk */
-gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
+chunk_s *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
 {
-   gint current; 
-   gchar *ret = g_malloc (BUF_SIZE);
+   gint current;
+   chunk_s *chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
+   chunk->chunk = (gchar *)g_malloc (BUF_SIZE);
+   //gchar *ret = g_malloc (BUF_SIZE);
    private_ogg_s *p_ogg = (private_ogg_s *)song->private;
-   *sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
-   *size = ov_read (&p_ogg->vorbis_file, ret, BUF_SIZE / 2, 0, 2, 1, &current);
-
+   //sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
+   chunk->sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
+   //*size = ov_read (&p_ogg->vorbis_file, ret, BUF_SIZE / 2, 0, 2, 1, &current);
+   chunk->size = ov_read (&p_ogg->vorbis_file, chunk->chunk, BUF_SIZE / 2, 0, 2, 1, &current);
+   
+   if (chunk->size == OV_EBADLINK || chunk->size == OV_HOLE) {
+      chunk->size = 0;
+      g_free (chunk->chunk);
+      chunk->chunk = NULL;
+   }
+   
+/*
    if (*size == OV_EBADLINK || *size == OV_HOLE)
       *size = 0;
-   
+      
    if (*size < 1) {
       *sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
       *eof = 1;
-      /*
+      */
+   if (chunk->size < 1) {
+      chunk->sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
+      chunk->eof = 1;
+      //song->finished = 1;
+/*
       song->finished = 1;
       LOG ("end of file?");
       */
-      g_free (ret);
-      return NULL;
+      //g_free (ret);
+      g_free (chunk->chunk);
+      g_free (chunk);
+      chunk->chunk = NULL;
+      chunk->size = 0;
+      return chunk;
    } else {
-      *eof = 0;
+      //*eof = 0;
+      chunk->eof = 0;
    }
    
-   return ret;
+   return chunk;
 }
 
 /* open the file, perform a couple checks */
@@ -150,7 +171,7 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
       song_free (song);
       return NULL;
    }
-      
+
    return song;
 }
 

@@ -32,10 +32,10 @@
 /* simple logging stuff */
 #define USE_LOGGING
 #ifdef USE_LOGGING
-#define LOG(msg,args...) {			\
-      printf ("[%s:%d]:%s(): \"", FL, LN, FN);	\
-      printf (msg, ## args);			\
-      printf ("\"\n");				\
+#define LOG(msg,args...) {						\
+      printf ("[%s:%d]: \"", __FILE__, __LINE__);	\
+      printf (msg, ## args);						\
+      printf ("\"\n");							\
    }
 #else
 #define LOG(msg,args...)

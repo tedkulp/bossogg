@@ -23,6 +23,7 @@
 #import <dlfcn.h>
 
 #import "common.h"
+#import "thbuf.h"
 
 typedef struct song_t {
    gint finished;
@@ -37,7 +38,7 @@ typedef gint (*input_seek_f)(song_s *song, gdouble length);
 typedef gint64 (*input_samples_total_f)(song_s *song);
 typedef gdouble (*input_time_total_f)(song_s *song);
 typedef gdouble (*input_time_current_f)(song_s *song);
-typedef gchar *(*input_play_chunk_f)(song_s *song, gint *size, gint64 *sample_num, gchar *eof);
+typedef chunk_s *(*input_play_chunk_f)(song_s *song, gint *size, gint64 *sample_num, gchar *eof);
 typedef song_s *(*input_open_f)(struct input_plugin_t *plugin, gchar *filename);
 typedef gint (*input_close_f)(song_s *song);
 typedef gchar *(*input_name_f)(void);
@@ -72,7 +73,7 @@ gint input_identify (gchar *filename);
 gint input_seek (gdouble len);
 gdouble input_time_total (void);
 gdouble input_time_current (void);
-gchar *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof);
+chunk_s *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof);
 song_s *input_open (input_plugin_s *plugin, gchar *filename);
 gint input_close (void);
 gchar *input_name (void);
@@ -84,7 +85,7 @@ gint _input_seek (song_s *song, gdouble len);
 gdouble _input_time_total (song_s *song);
 gint64 _input_samples_total (song_s *song);
 gdouble _input_time_current (song_s *song);
-gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof);
+chunk_s *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof);
 song_s *_input_open (input_plugin_s *plugin, gchar *filename);
 gint _input_close (song_s *song);
 gchar *_input_name (void);

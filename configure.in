@@ -74,7 +74,7 @@ fi
 dnl Checks for libao
 AM_PATH_AO(CFLAGS="$CFLAGS $AO_CFLAGS" LIBS="$LIBS $AO_LIBS",AC_MSG_ERROR(Must have libao installed!!!))
 
-dnl Checks for libogg/libvorbis
+#Checks for libogg/libvorbis
 if test $enable_vorbis = yes; then
 	AM_PATH_OGG(CFLAGS="$CFLAGS $OGG_CFLAGS" LIBS="$LIBS $OGG_LIBS",enable_vorbis=no)
 	AM_PATH_VORBIS(CFLAGS="$CFLAGS $VORBIS_CFLAGS $VORBISFILE_CFLAGS" LIBS="$LIBS $VORBIS_LIBS $VORBISFILE_LIBS" AC_DEFINE(HAVE_VORBIS,,Compile vorbis support),enable_vorbis=no)
@@ -83,7 +83,7 @@ if test $enable_vorbis = yes; then
 	fi
 fi
 
-dnl Checks for libflac
+#Checks for libflac
 if test $enable_flac = yes; then
 	AM_PATH_LIBFLAC(CFLAGS="$CFLAGS $LIBFLAC_CFLAGS" LIBS="$LIBS $LIBFLAC_LIBS" AC_DEFINE(HAVE_FLAC,,Compile libflac support),enable_flac=no)
 	if test $enable_flac = no; then
@@ -91,7 +91,7 @@ if test $enable_flac = yes; then
 	fi
 fi
 
-dnl Check for mad
+#Check for mad
 if test $enable_mp3 = yes; then
 	AC_MSG_CHECKING(for libmad files)
 	dir=""
@@ -119,7 +119,7 @@ if test $enable_mp3 = yes; then
 	fi
 fi
 
-dnl Check for id3 tag support
+#Check for id3 tag support
 if test $enable_id3 = yes; then
 	AC_MSG_CHECKING(for libid3 files)
 	dir=""
@@ -134,8 +134,7 @@ if test $enable_id3 = yes; then
 		fi
 	done
 
-	if test x$id3dir = x
-	then
+	if test x$id3dir = x;	then
 		enable_id3=no
 		AC_MSG_WARN(ID3 libs not found... disabling id3 metadata support)
 	else

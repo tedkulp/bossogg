@@ -47,7 +47,7 @@ static GStaticMutex cons_pause_sem_mutex = G_STATIC_MUTEX_INIT;
 static GStaticMutex prod_pause_sem_mutex = G_STATIC_MUTEX_INIT;
 static thbuf_static_sem_t cons_pause_sem, prod_pause_sem;
 static GThread *producer, *consumer;
-static gint paused = 1;
+//static gint paused = 1;
 static gint stopped = 1;
 static gint quit;
 
@@ -86,8 +86,8 @@ static void buffer_free_callback (void *p)
 static gpointer producer_thread (gpointer p)
 {
    gint size;
-   gchar *chunk;
-   chunk_s *cur_chunk;
+   //gchar *chunk;
+   chunk_s *chunk;
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
    gchar eof = -1;
@@ -101,6 +101,7 @@ static gpointer producer_thread (gpointer p)
       LOG ("waiting on eof sem");
       //semaphore_p (produce_eof_sem);
       static_semaphore_p (&produce_eof_sem);
+      LOG ("done");
       eof = 0;
    }
       
@@ -111,35 +112,55 @@ static gpointer producer_thread (gpointer p)
       //cur_chunk = &chunks[pos];
       //semaphore_v (prod_pause_sem);
       static_semaphore_v (&prod_pause_sem);
+      /*
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
       cur_chunk->chunk = chunk;
       cur_chunk->size = size;
       cur_chunk->sample_num = sample_num;
+      */
+
       if (quit) {
 	 g_usleep (100000);
 	 //thbuf_produce (thbuf, cur_chunk);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
-      
+
       if (chunk == NULL) {
+	 LOG ("got a NULL chunk");
+	 g_usleep (0);
+	 if (!eof) {
+	    continue;
+	 } else {
+	    chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
+	    chunk->eof = 1;
+	    chunk->size = 0;
+	    chunk->chunk = NULL;
+	 }
+      }
+      
+      if (chunk->eof)
+	 eof = 1;
+
+      if (chunk->chunk == NULL) {
 	 LOG ("got a NULL chunk: %lld %lld", last_sample_num, sample_num);
-	 g_usleep (10000);
+	 g_usleep (0);
+	 
 	 if (eof) {
 	    LOG ("was eof...");
-	    cur_chunk->size = 0;
-	    cur_chunk->chunk = NULL;
+	    chunk->size = 0;
 	 } else {
-	    g_free (cur_chunk);
+	    g_free (chunk);
 	    //buffer_free_callback (cur_chunk);
 	    g_usleep (10000);
 	    continue;
 	 }
+	 //eof = 1;
       }
-      cur_chunk->eof = eof;
+
       //LOG ("producing");
       //thbuf_produce (thbuf, cur_chunk);
-      pos = thbuf_static_produce (&thbuf, cur_chunk);
+      pos = thbuf_static_produce (&thbuf, chunk);
 
       //buffer_free_callback (old_chunk);
       if (eof) {
@@ -192,18 +213,21 @@ static gpointer consumer_thread (gpointer p)
 	    LOG ("was eof?: %d", chunk->eof);
 	 }
 	 last_sample_num = chunk->sample_num;
-	 if (chunk->chunk)
-	    g_free (chunk->chunk);
-	 g_free (chunk);
 	 if (!chunk->eof) {
 	    LOG ("wasn't eof");
 	    g_usleep (0);
+	    if (chunk->chunk)
+	       g_free (chunk->chunk);
+	    g_free (chunk);
 	    continue;
 	 } else {
 	    LOG ("got eof 1");
 	    input_plugin_set_end_of_file ();
-	    g_usleep (50000);
+	    //g_usleep (50000);
 	    static_semaphore_p (&consume_eof_sem);
+	    if (chunk->chunk)
+	       g_free (chunk->chunk);
+	    g_free (chunk);
 	    continue;
 	 }
       }
@@ -236,14 +260,14 @@ static gpointer consumer_thread (gpointer p)
 
       if (chunk->eof) {
 	 LOG ("got EOF 2");
-	 g_free (chunk->chunk);
-	 g_free (chunk);
+	 //g_free (chunk->chunk);
+	 //g_free (chunk);
 	 input_plugin_set_end_of_file ();
-	 g_usleep (50000);
+	 //g_usleep (50000);
 	 //semaphore_p (consume_eof_sem);
 	 static_semaphore_p (&consume_eof_sem);
 	 //g_usleep (10000);
-	 continue;
+	 //continue;
       }
 
       g_free (chunk->chunk);
@@ -270,7 +294,7 @@ static void init_plugins (PyObject *cfgparser)
    input_plugin_open ("input_flac.la");
 
    output_plugin_open ("output_ao.la");
-   output_plugin_open ("output_shout.la");
+   //output_plugin_open ("output_shout.la");
    //output_plugin_open ("output_alsa.la");
 
    softmix_plugin = output_mod_plugin_open ("output_mod_softmix.la");
@@ -346,7 +370,7 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
    
    init_plugins (cfgparser);
 
-   output_plugin_open_all (cfgparser);
+   output_plugin_open_all (NULL);
 
    //pause_mutex = g_mutex_new ();
    //prod_pause_sem = semaphore_new (0);

@@ -86,7 +86,7 @@ gint semaphore_p (thbuf_sem_t *sem)
    return count;
 }
 
-gint static_semaphore_p (thbuf_static_sem_t *sem)
+inline gint static_semaphore_p (thbuf_static_sem_t *sem)
 {
    gint count;
    
@@ -103,7 +103,7 @@ gint static_semaphore_p (thbuf_static_sem_t *sem)
 
 /* performs a v operation on the semaphore
    returns the count of the semaphore */
-gint semaphore_v (thbuf_sem_t *sem)
+inline gint semaphore_v (thbuf_sem_t *sem)
 {
    gint count;
    
@@ -116,7 +116,7 @@ gint semaphore_v (thbuf_sem_t *sem)
    return count;
 }
 
-gint static_semaphore_v (thbuf_static_sem_t *sem)
+inline gint static_semaphore_v (thbuf_static_sem_t *sem)
 {
    gint count;
    
@@ -132,7 +132,7 @@ gint static_semaphore_v (thbuf_static_sem_t *sem)
 /* production function
    adds p the the thbuf
    adds size to the size array */
-gint thbuf_produce (thbuf_t *buf, void *p)
+inline gint thbuf_produce (thbuf_t *buf, void *p)
 {
    gint ret;
    
@@ -158,7 +158,7 @@ gint thbuf_produce (thbuf_t *buf, void *p)
    //return (gint)old;
 }
 
-gint thbuf_static_produce (thbuf_static_t *buf, void *p)
+inline gint thbuf_static_produce (thbuf_static_t *buf, void *p)
 {
    gint ret;
    
@@ -167,9 +167,11 @@ gint thbuf_static_produce (thbuf_static_t *buf, void *p)
 
    // critical section, add the data to the thbuf 
    g_static_mutex_lock (buf->mutex);
+   /*
    if (buf->buf[buf->produce_pos]) {
       LOG ("uhh... a position wasn't null: buf->producer_pos: %d", buf->produce_pos);
-   }
+      }
+   */
    buf->buf[buf->produce_pos] = p;
    //LOG ("produced to %d", buf->produce_pos);
    buf->produce_pos = (buf->produce_pos + 1) % (THBUF_SIZE);
@@ -187,7 +189,7 @@ gint thbuf_static_produce (thbuf_static_t *buf, void *p)
 /* consumption function
    returns p that was added
    size is returned to be the size associated with p */
-void *thbuf_consume (thbuf_t *buf, gint *count)
+inline void *thbuf_consume (thbuf_t *buf, gint *count)
 {
    // perform a p operation on full, makes less full 
    semaphore_p (buf->full);
@@ -209,7 +211,7 @@ void *thbuf_consume (thbuf_t *buf, gint *count)
    return ret;
 }
 
-void *thbuf_static_consume (thbuf_static_t *buf, gint *count)
+inline void *thbuf_static_consume (thbuf_static_t *buf, gint *count)
 {
    // perform a p operation on full, makes less full 
    static_semaphore_p (buf->full);
@@ -261,7 +263,7 @@ static void *thbuf_static_consume_no_lock (thbuf_static_t *buf, gint *count)
    //critical section, remove the data from the thbuf 
    void *ret = buf->buf[buf->consume_pos];
    buf->buf[buf->consume_pos] = NULL;
-   if (count != NULL)
+   //if (count != NULL)
       *count = buf->full->count;
    buf->consume_pos = (buf->consume_pos + 1) % (THBUF_SIZE);
    //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);

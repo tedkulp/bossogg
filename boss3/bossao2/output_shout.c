@@ -128,7 +128,7 @@ gint output_open (PyObject *cfgparser)
    if (cfgparser == NULL) {
       LOG ("Using shout defaults");
       host = strdup ("127.0.0.1");
-      user = strdup ("admin");
+      user = strdup ("source");
       password = strdup ("hackme");
       mount = strdup ("/bossogg.ogg");
       port = 8000;

@@ -115,7 +115,7 @@ void output_plugin_close_all (void)
 }
 
 typedef struct write_chunk_all_t {
-   guchar *buffer;
+   gchar *buffer;
    gint size;
 } write_chunk_all_s;
 

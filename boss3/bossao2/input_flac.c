@@ -46,12 +46,12 @@ typedef struct private_flac_t {
 
 gint _input_identify (gchar *filename)
 {
-   int ret = 0;
+   gint ret = 0;
 
    if (filename == NULL)
       return 0;
 
-   int len = strlen (filename);
+   gint len = strlen (filename);
    gchar *ptr = &filename[len - 4];
 
    if (strncmp (ptr, "flac", 4) == 0)
@@ -78,38 +78,55 @@ gdouble _input_time_current (song_s *song)
    return p_flac->time_current;
 }
 
-gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
+chunk_s *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
 {
    private_flac_s *p_flac = (private_flac_s *)song->private;
    FLAC__FileDecoder *decoder = (FLAC__FileDecoder *)p_flac->decoder;
    p_flac->was_metadata = 1;
    FLAC__file_decoder_process_single (decoder);
+   chunk_s *chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
 
    if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE) {
       //song->finished = 1;
-      *sample_num = p_flac->samples_total;
-      *size = 0;
-      *eof = 1;
+      //*sample_num = p_flac->samples_total;
+      //*size = 0;
+      //*eof = 1;
+      chunk->sample_num = p_flac->samples_total;
+      chunk->size = 0;
+      chunk->eof = 1;
+      //song->finished = 1;
+      chunk->chunk = NULL;
       LOG ("song is finished 1");
-      return NULL;
+      return chunk;
    } else
-      *eof = 0;
+      //*eof = 0;
+      chunk->eof = 0;
 
-   *size = p_flac->buffer_size;
-   *sample_num = p_flac->samples_current;
+   //*size = p_flac->buffer_size;
+   //*sample_num = p_flac->samples_current;
+
+   chunk->size = p_flac->buffer_size;
+   chunk->sample_num = p_flac->samples_current;
 
    if (p_flac->samples_current != p_flac->samples_total)
       semaphore_p (p_flac->sem);
    else {
       LOG ("setting eof early?");
-      *eof = 1;
-   }
-   if (*size == 0) {
+      //*eof = 1;
+      chunk->eof = 1;
       //song->finished = 1;
+   }
+   //if (*size == 0) {
+   if (chunk->size == 0) {
+      //song->finished = 1;
+      chunk->chunk = 0;
       LOG ("song is finished 2");
+      return chunk;
       //return NULL;
    }
-   return (gchar *)p_flac->buffer;
+   chunk->chunk = (gchar *)p_flac->buffer;
+   return chunk;
+   //return (gchar *)p_flac->buffer;
 }
 
 static void error_callback (const FLAC__FileDecoder *decoder,
@@ -142,8 +159,9 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
    gint size = samples * frame->header.channels * sizeof (gshort);
    p_flac->buffer_size = size;
    if (samples) {
-      p_flac->buffer = g_malloc (sizeof (gshort) * samples * frame->header.channels);
+      p_flac->buffer = (gshort *)g_malloc (size);
    } else {
+      p_flac->buffer = NULL;
       return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
    }
    gint c_samp, c_chan, d_samp;

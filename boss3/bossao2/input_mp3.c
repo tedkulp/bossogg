@@ -206,13 +206,13 @@ static gint mp3_decode_frame (private_mp3_s *p_mp3)
    return DECODE_OK;
 }
 
-static gint mp3_read (song_s *song, gchar *buffer, gint *size, gint64 *sample_num)
+static gint mp3_read (song_s *song, chunk_s *chunk)
 {
    private_mp3_s *p_mp3 = (private_mp3_s *)song->private;
    static gint i;
    static gint ret;
    static struct audio_dither dither;
-   gchar *out_ptr = buffer;
+   gchar *out_ptr = chunk->chunk;
 
    mad_timer_add (&p_mp3->mp3_timer, p_mp3->mp3_frame.header.duration);
    mad_synth_frame (&p_mp3->mp3_synth, &p_mp3->mp3_frame);
@@ -220,7 +220,9 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size, gint64 *sample_nu
 						      MAD_UNITS_MILLISECONDS))/1000.0;
 
    if (p_mp3->mp3_synth.pcm.length == 0) {
-      *size = 0;
+      chunk->size = 0;
+      g_free (chunk->chunk);
+      chunk->chunk = NULL;
       return DECODE_BREAK;
    }
    
@@ -243,33 +245,37 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size, gint64 *sample_nu
    }
 
    if (ret != DECODE_BREAK) {
-      *sample_num = p_mp3->mp3_frame_count * 32 * MAD_NSBSAMPLES(&p_mp3->mp3_frame.header);   
-      *size = p_mp3->mp3_synth.pcm.length * 4;
+      chunk->sample_num = p_mp3->mp3_frame_count * 32 * MAD_NSBSAMPLES(&p_mp3->mp3_frame.header);   
+      chunk->size = p_mp3->mp3_synth.pcm.length * 4;
    } else {
-      *size = 0;
+      chunk->size = 0;
    }
    return ret;
 }
 
-gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
+chunk_s *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
 {
-   gint buf_size;
-   gchar *buffer = (gchar *)g_malloc (BUF_SIZE);
+   chunk_s *chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
+   chunk->chunk = (gchar *)g_malloc (BUF_SIZE);
 
-   if (mp3_read (song, buffer, &buf_size, sample_num) == DECODE_BREAK) {
+   if (mp3_read (song, chunk) == DECODE_BREAK) {
       //song->finished = 1;
       private_mp3_s *mp3 = (private_mp3_s *)song->private;
       LOG ("setting eof...");
-      *eof = 1;
-      *sample_num = mp3->samples_total;
+      //*eof = 1;
+      chunk->eof = 1;
+      //song->finished = 1;
+      //*sample_num = mp3->samples_total;
+      chunk->sample_num = mp3->samples_total;
       //g_free (buffer);
    } else
-      *eof = 0;
+      chunk->eof = 0;
+   //*eof = 0;
    
    //output_plugin_write_chunk_all (NULL, buffer, buf_size);
-   *size = buf_size;
+   //size = buf_size;
    
-   return buffer;
+   return chunk;
 }
 
 static gint decode_next_frame_header (private_mp3_s *mp3)

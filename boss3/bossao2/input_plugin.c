@@ -108,13 +108,21 @@ inline gdouble input_time_current (void)
    return ret;
 }
 
-inline gchar *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof)
+inline chunk_s *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof)
 {
-   gchar *ret;
+   chunk_s *ret;
    g_static_mutex_lock (&current_mutex);
    if (current_song != NULL && current_plugin != NULL) {
       //LOG ("playing a chunk of %s", current_plugin->name);
       //g_usleep (0);
+      if (current_song->finished) {
+	 LOG ("song is already finished!");
+	 *sample_num = 0;
+	 *size = 0;
+	 *eof = 1;
+	 g_static_mutex_unlock (&current_mutex);
+	 return NULL;	 
+      }
       ret = current_plugin->input_play_chunk (current_song, size, sample_num, eof);
    } else {
       *eof = 0;
@@ -142,11 +150,12 @@ inline gint input_finished (void)
 
 inline song_s *input_open (input_plugin_s *plugin, gchar *filename)
 {
+   g_static_mutex_lock (&current_mutex);
    song_s *song = plugin->input_open (plugin, filename);
    song->filename = filename;
-   g_static_mutex_lock (&current_mutex);
    current_song = song;
    g_static_mutex_unlock (&current_mutex);
+
    return song;
 }
 

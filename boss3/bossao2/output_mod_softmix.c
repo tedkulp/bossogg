@@ -65,8 +65,12 @@ void output_mod_run (gchar *chunk, gint size)
 {
    gint i;
 
-   if (chunk == NULL)
+   if (chunk == NULL || percent == 1.0)
       return;
+   if (percent == 0.0) {
+      memset (chunk, 0, size);
+      return;
+   }
    
    // software mixing is easy, all you have to do is multiply
    // the samples by the volume percentage you want
