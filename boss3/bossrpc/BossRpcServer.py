@@ -6,6 +6,7 @@ from boss3.xmlrpc import xmlrpclib
 from boss3.util import bosslog
 from boss3.xmlrpc.XmlRpcServer import XmlRpcInterface
 import zlib
+import time
 
 log = bosslog.getLogger()
 
@@ -82,7 +83,7 @@ class BossRpcServer(threading.Thread):
 					(conn, addr) = i.accept()
 					log.debug("bossrpc","Accepted a new connection from: %s" % str(addr[0]))
 					self.readable_in.append(conn)
-					self.writable_in.append(conn)
+					#self.writable_in.append(conn)
 				else:
 					recvbuf = i.recv(self.buflength)
 					if len(recvbuf) == 0:
@@ -98,7 +99,7 @@ class BossRpcServer(threading.Thread):
 							log.debug("bossrpc","No session found to remove")
 						i.close()
 						self.readable_in.remove(i)
-						self.writable_in.remove(i)
+						#self.writable_in.remove(i)
 					else:
 						recvbuf = string.strip(recvbuf)
 						if len(recvbuf) > 0:

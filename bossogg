@@ -124,7 +124,7 @@ def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null', pidfile
 			sys.exit(1)
 	# First fork; decouple
 	forkToChild()
-	#os.chdir("/") 
+	os.chdir("/") 
 	os.umask(0) 
 	os.setsid() 
 	# Second fork; create pidfile; redirect descriptors
