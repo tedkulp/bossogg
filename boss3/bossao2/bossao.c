@@ -89,7 +89,7 @@ static gpointer producer_thread (gpointer p)
    chunk_s *chunk;
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
-   gchar eof = -1;
+   gchar eof = 0;
    gint pos = 0;
 
    //chunk_s *chunks = (chunk_s *)g_malloc (sizeof (chunk_s) * THBUF_SIZE);
@@ -307,7 +307,7 @@ static void init_plugins (PyObject *cfgparser)
    input_plugin_open ("input_flac.la");
 
    output_plugin_open ("output_ao.la");
-   output_plugin_open ("output_shout.la");
+   //output_plugin_open ("output_shout.la");
    //output_plugin_open ("output_alsa.la");
 
    softmix_plugin = output_mod_plugin_open ("output_mod_softmix.la");
