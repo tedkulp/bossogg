@@ -69,6 +69,7 @@ options = (
 ( "h", "help",   "", 		"Help screen (Your reading it!)" ),
 ( "v", "verbose","",		"Verbose output. -v = Info  -vv = Debug" ),
 ( "D", "debug", "channels", "Enable debugging and display specified channels -D help gives help"),
+( "",  "log-file", "filename", "Log all logging output to <filename>"),
 ( "q", "quiet",  "", 		"No output to screen"),
 ( "H", "host", "url",		"URL for the BossOgg server EG: http://localhost:4069/"),
 ( "s", "sync", "", 			"Sync directory/subdirectories with the song database "
@@ -412,6 +413,9 @@ def process_args(args):
 		if opt in ("--force-commit", ):
 			log.debug("interact", "Whoa. Force commit eh? Things must be serious!")
 			config["force_commit"] = True
+		if opt in ("--log-file", ):
+			log.logtofile(arg)
+			log.debug("misc" , "Logging to file %s", arg)
 		if opt in ("-F", "--format"):
 			if arg[0] == "/" and os.path.isfile(arg):
 				try:

@@ -86,13 +86,15 @@ class Logger(logging.Logger):
 	def __init__(self, name):
 		logging.Logger.__init__(self, name)
 		self.stdout = logging.StreamHandler()
-		#self.file = logging.FileHandler("bossogg.log")
 		self.format = logging.Formatter("[Tx%(thread)d:%(levelname)s:%(module)s:%(lineno)d] %(message)s")
 		self.stdout.setFormatter(self.format)
-		#self.file.setFormatter(self.format)
-		#self.addHandler(self.file)
 		self.addHandler(self.stdout)
 		self.addFilter(Filter())
+
+	def logtofile(self, filename):
+		self.file = logging.FileHandler(filename)
+		self.file.setFormatter(self.format)
+		self.addHandler(self.file)
 
 	def findCaller(self):
 		"""
