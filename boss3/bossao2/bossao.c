@@ -36,7 +36,7 @@ typedef struct chunk_t {
 
 //static chunk_s chunks[THBUF_SIZE];
 
-static thbuf_sem_t *eof_sem;
+static thbuf_sem_t *produce_eof_sem, *consume_eof_sem;
 
 static thbuf_t *thbuf;
 static GMutex *pause_mutex;//, *produce_mutex;
@@ -83,7 +83,7 @@ static gpointer producer_thread (gpointer p)
 
    if (eof == -1) {
       LOG ("waiting on eof sem");
-      semaphore_p (eof_sem);
+      semaphore_p (produce_eof_sem);
       eof = 0;
    }
       
@@ -121,7 +121,7 @@ static gpointer producer_thread (gpointer p)
       //g_usleep (0);
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
-	 semaphore_p (eof_sem);
+	 semaphore_p (produce_eof_sem);
 	 eof = 0;
       }
 
@@ -147,7 +147,7 @@ static gpointer consumer_thread (gpointer p)
    
    g_usleep (100000);
 
-   semaphore_p (eof_sem);
+   semaphore_p (consume_eof_sem);
    
    while (1) {
       //LOG ("consuming");
@@ -194,7 +194,7 @@ static gpointer consumer_thread (gpointer p)
 	 input_plugin_set_end_of_file ();
 	 g_usleep (10000);
 	 semaphore_v (thbuf->empty);
-	 semaphore_p (eof_sem);
+	 semaphore_p (consume_eof_sem);
 	 //g_usleep (10000);
 	 //g_free (chunk);
 	 continue;
@@ -303,7 +303,8 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
 {
    bossao_thread_init ();
 
-   eof_sem = semaphore_new (0);
+   produce_eof_sem = semaphore_new (0);
+   consume_eof_sem = semaphore_new (0);
    
    init_plugins (cfgparser);
 
@@ -370,10 +371,12 @@ gint bossao_play (gchar *filename)
    input_open (plugin, filename);
    bossao_pause ();
    stopped = 0;
-   eof_sem->count = 0;
+   produce_eof_sem->count = 0;
+   consume_eof_sem->count = 0;
    g_usleep (10000);
-   semaphore_v (eof_sem);
-   semaphore_v (eof_sem);
+   semaphore_v (produce_eof_sem);
+   g_usleep (10000);
+   semaphore_v (consume_eof_sem);
    //g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
    g_usleep (50000);
