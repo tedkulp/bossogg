@@ -236,12 +236,14 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size, gint64 *sample_nu
    while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT) {
    }
 
-   *sample_num = p_mp3->mp3_frame_count * 32 * MAD_NSBSAMPLES(&p_mp3->mp3_frame.header);   
-   *size = p_mp3->mp3_synth.pcm.length * 4;
+   if (ret != DECODE_BREAK) {
+      *sample_num = p_mp3->mp3_frame_count * 32 * MAD_NSBSAMPLES(&p_mp3->mp3_frame.header);   
+      *size = p_mp3->mp3_synth.pcm.length * 4;
+   }
    return ret;
 }
 
-gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num)
+gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
 {
    gint buf_size;
    gchar *buffer = (gchar *)g_malloc (BUF_SIZE);
@@ -252,9 +254,11 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num)
 
    if (mp3_read (song, buffer, &buf_size, sample_num) == DECODE_BREAK) {
       //song->finished = 1;
+      *eof = 1;
       g_free (buffer);
       return NULL;
-   }
+   } else
+      eof = 0;
    //output_plugin_write_chunk_all (NULL, buffer, buf_size);
    *size = buf_size;
    

@@ -25,7 +25,7 @@
 
 typedef gint (*output_open_f)(PyObject *cfgparser);
 typedef void (*output_close_f)(void);
-typedef gint (*output_write_chunk_f)(guchar *buffer, gint size);
+typedef gint (*output_write_chunk_f)(gchar *buffer, gint size);
 typedef gchar *(*output_name_f)(void);
 typedef gchar *(*output_driver_name_f)(void);
 
@@ -50,6 +50,6 @@ void output_plugin_write_chunk_all (guchar *buffer, gint size);
 
 gint output_open (PyObject *cfgparser);
 void output_close (void);
-gint output_write_chunk (guchar *buffer, gint size);
+gint output_write_chunk (gchar *buffer, gint size);
 gchar *output_name (void);
 gchar *output_driver_name (void);

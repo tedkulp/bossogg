@@ -88,7 +88,7 @@ void output_close (void)
    snd_pcm_close (playback_handle);
 }
 
-gint output_write_chunk (guchar *buffer, gint size)
+gint output_write_chunk (gchar *buffer, gint size)
 {
    gint err;
    if ((err = snd_pcm_writei (playback_handle, buffer, size)) != size) {

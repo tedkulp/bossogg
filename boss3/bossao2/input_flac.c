@@ -78,7 +78,7 @@ gdouble _input_time_current (song_s *song)
    return p_flac->time_current;
 }
 
-gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num)
+gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
 {
    private_flac_s *p_flac = (private_flac_s *)song->private;
    FLAC__FileDecoder *decoder = (FLAC__FileDecoder *)p_flac->decoder;
@@ -89,9 +89,11 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num)
       //song->finished = 1;
       *sample_num = p_flac->samples_total;
       *size = 0;
+      *eof = 1;
       LOG ("song is finished 1");
       return NULL;
-   }
+   } else
+      *eof = 0;
 
    if (p_flac->samples_current != p_flac->samples_total)
       semaphore_p (p_flac->sem);

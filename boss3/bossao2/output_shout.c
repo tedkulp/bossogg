@@ -123,8 +123,8 @@ gint output_open (PyObject *cfgparser)
    if (cfgparser == NULL) {
       LOG ("Using shout defaults");
       host = strdup ("127.0.0.1");
-      user = strdup ("user");
-      password = strdup ("password");
+      user = strdup ("admin");
+      password = strdup ("hackme");
       mount = strdup ("/bossogg.ogg");
       port = 8000;
    } else {
@@ -220,10 +220,10 @@ void output_close (void)
    shout_free (st);
 }
 
-gint output_write_chunk (guchar *buffer, gint size)
+gint output_write_chunk (gchar *buffer, gint size)
 {
    gint i, result, ret, eos = 0;
-   guchar *buf = buffer;
+   gchar *buf = buffer;
    static gint samples_in_page = 0;
    static gint prev_granulepos = 0;
    rate = 44100;

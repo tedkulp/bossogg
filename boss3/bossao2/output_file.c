@@ -48,7 +48,7 @@ void output_close (void)
    fclose (file);
 }
 
-gint output_write_chunk (guchar *buffer, gint size)
+gint output_write_chunk (gchar *buffer, gint size)
 {
    fwrite (buffer, size, 1, file);
    return 0;

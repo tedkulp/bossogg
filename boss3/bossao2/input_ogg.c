@@ -84,7 +84,7 @@ gdouble _input_time_current (song_s *song)
 }
 
 /* play a chunk */
-gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num)
+gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *eof)
 {
    gint current; 
    gchar *ret = g_malloc (BUF_SIZE);
@@ -94,12 +94,15 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num)
 
    if (*size == 0) {
       *sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
+      *eof = 1;
       /*
       song->finished = 1;
       LOG ("end of file?");
       */
       g_free (ret);
       return NULL;
+   } else {
+      *eof = 0;
    }
    
    return ret;

@@ -31,6 +31,7 @@ typedef struct chunk_t {
    guchar *chunk;
    gint sample_num;
    gint size;
+   gchar eof;
 } chunk_s;
 
 //static chunk_s chunks[THBUF_SIZE];
@@ -64,27 +65,30 @@ static gpointer producer_thread (gpointer p)
    guchar *chunk;
    chunk_s *cur_chunk;
    gint64 sample_num;
+   gchar eof;
 
+   g_usleep (10000);
+   
    while (1) {
       g_mutex_lock (produce_mutex);
-      chunk = input_play_chunk (&size, &sample_num);
+      chunk = input_play_chunk (&size, &sample_num, &eof);
+      g_mutex_unlock (produce_mutex);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
       cur_chunk->chunk = chunk;
       cur_chunk->size = size;
       cur_chunk->sample_num = sample_num;
+      cur_chunk->eof = eof;
       if (quit) {
 	 g_usleep (100000);
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
-	 g_mutex_unlock (produce_mutex);
-	 LOG ("stopping thread")
+	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
-	 thbuf_produce (thbuf, cur_chunk, producer_pos);
-	 producer_pos++;
-	 producer_pos %= THBUF_SIZE;
-	 g_mutex_unlock (produce_mutex);
+	 //thbuf_produce (thbuf, cur_chunk, producer_pos);
+	 //producer_pos++;
+	 //producer_pos %= THBUF_SIZE;
 	 g_usleep (100000);
 	 continue;
       }
@@ -96,7 +100,6 @@ static gpointer producer_thread (gpointer p)
       if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
       }
-      g_mutex_unlock (produce_mutex);
       g_usleep (0);
    }
 
@@ -105,21 +108,23 @@ static gpointer producer_thread (gpointer p)
 
 static gpointer consumer_thread (gpointer p)
 {
-   chunk_s *chunk = NULL;
+   chunk_s *chunk = (chunk_s *)0x1;
    gint64 last_sample_num = -1;
 
+   g_usleep (100000);
+   
    while (1) {
-      g_mutex_lock (pause_mutex);
-      if (last_sample_num == input_plugin_samples_total ()) {
-	 LOG ("Same sample num twice, end of song?");
-	 input_plugin_set_end_of_file ();
-	 thbuf_consume (thbuf, consumer_pos);
-	 consumer_pos++;
-	 consumer_pos %= THBUF_SIZE;
-	 LOG ("consumed after end");
-	 g_mutex_unlock (pause_mutex);
-	 g_usleep (10000);
-	 continue;
+      if (chunk != (chunk_s *)0x1) {
+	 if (last_sample_num == input_plugin_samples_total ()) {
+	    LOG ("Same sample num twice, end of song?");
+	    input_plugin_set_end_of_file ();
+	    thbuf_consume (thbuf, consumer_pos);
+	    consumer_pos++;
+	    consumer_pos %= THBUF_SIZE;
+	    LOG ("consumed after end");
+	    g_usleep (10000);
+	    continue;
+	 }
       }
       //LOG ("consuming");
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
@@ -127,14 +132,17 @@ static gpointer consumer_thread (gpointer p)
       consumer_pos %= THBUF_SIZE;
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
-	 g_mutex_unlock (pause_mutex);
 	 g_usleep (100000);
 	 continue;
       }
       if (chunk->chunk == NULL) {
 	 LOG ("got a NULL chunk %d %d", (gint)last_sample_num, (gint)input_plugin_samples_total ());
 	 last_sample_num = chunk->sample_num;
-	 g_mutex_unlock (pause_mutex);
+	 g_usleep (10000);
+	 continue;
+      }
+      if (chunk->eof) {
+	 LOG ("got EOF");
 	 g_usleep (10000);
 	 continue;
       }
@@ -143,9 +151,10 @@ static gpointer consumer_thread (gpointer p)
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
       }       
       //LOG ("about to play %p of %d size", chunk->chunk, chunk->size);
+      g_mutex_lock (pause_mutex);
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
-      output_plugin_write_chunk_all (chunk->chunk, chunk->size);
       g_mutex_unlock (pause_mutex);
+      output_plugin_write_chunk_all (chunk->chunk, chunk->size);
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
@@ -334,11 +343,11 @@ gint bossao_finished (void)
 
 gint bossao_getvol (void)
 {
-   gint *vol = NULL;
+   gpointer vol = NULL;
    if (softmix_plugin != NULL) {
-      softmix_plugin->output_mod_get_config (NULL, NULL, (gpointer *)&vol);
+      softmix_plugin->output_mod_get_config (NULL, NULL, &vol);
    }
-   return *vol;
+   return *((gint *)vol);
 }
 
 void bossao_setvol (int vol)
