@@ -93,7 +93,7 @@ static gpointer producer_thread (gpointer p)
    gchar eof = -1;
    gint pos = 0;
 
-   chunk_s *chunks = (chunk_s *)g_malloc (sizeof (chunk_s) * THBUF_SIZE);
+   //chunk_s *chunks = (chunk_s *)g_malloc (sizeof (chunk_s) * THBUF_SIZE);
    
    g_usleep (10000);
 

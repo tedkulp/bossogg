@@ -160,6 +160,7 @@ inline gint input_close (void)
       else
 	 LOG ("current plugin was NULL!");
       current_song = NULL;
+      current_plugin = NULL;
    } else {
       LOG ("already NULL");
       ret = -1;

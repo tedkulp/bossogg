@@ -272,7 +272,7 @@ gint _input_close (song_s *song)
    }
 
    song_free (song);
-   g_free (p_flac);
+   //g_free (p_flac);
    
    return 0;
 }
