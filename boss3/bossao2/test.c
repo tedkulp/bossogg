@@ -29,7 +29,7 @@ thbuf_t *thbuf;
 GMutex *cons_pause_mutex, *prod_pause_mutex;
 int prod_pos, cons_pos;
 
-#define THBUF_SIZE 64
+#define THBUF_SIZE 256
 
 gchar chunks[THBUF_SIZE * BUF_SIZE];
 
@@ -46,6 +46,10 @@ static gpointer producer (gpointer p)
       //output_plugin_write_chunk_all (NULL, chunk, size);
       //thbuf_produce (thbuf, chunk, size, pos);
       //LOG ("in chunk is %d %p", size, chunk);
+      if (chunk == NULL) {
+	 g_usleep (10000);
+	 continue;
+      }
       thbuf_produce (thbuf, chunk, size, prod_pos);
       //if (chunk == NULL) {
       // LOG ("got a null chunk, ending thread");
@@ -97,6 +101,10 @@ static gpointer consumer (gpointer p)
       //LOG ("out chunk is %d %p", size, chunk);
       if (chunk != NULL && size != 0)
 	 output_plugin_write_chunk_all (NULL, chunk, size);
+      else {
+	 g_usleep (10000);
+	 continue;
+      }
       g_free (chunk);
       //pos++;
       cons_pos++;
