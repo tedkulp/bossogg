@@ -93,7 +93,7 @@ class Database:
 				try:
 					sqlite.Cursor.execute(self, SQL, *args)
 					break
-				except OperationalError:
+				except sqlite.OperationalError:
 					if loopcnt >= 5:
 						log.error("Can't get time with the DB, It's still locked after 5 retries")
 						raise
