@@ -1,0 +1,33 @@
+CFLAGS = -ggdb -DHAVE_FLAC -DHAVE_VORBIS -DHAVE_MP3 -I/usr/include/python2.3
+LDLIBS = -ggdb -lao -logg -lFLAC -lvorbis -lvorbisfile -lvorbisenc -lmad -lshout -lpthread
+
+all: test testmixer bossao.py _bossao.so
+
+test: bossao.o test.o ogg.o mp3.o flac.o oss_mixer.o
+
+testmixer: bossao.o testmixer.o ogg.o mp3.o flac.o oss_mixer.o
+
+mp3.o: mp3.c mp3.h bossao.h
+
+ogg.o: ogg.c ogg.h bossao.h
+
+flac.o: flac.c flac.h bossao.h
+
+oss_mixer.o: oss_mixer.c oss_mixer.h bossao.h
+
+test.o: test.c bossao.h ogg.h mp3.h
+
+testmixer.o: testmixer.c bossao.h ogg.h mp3.h
+
+bossao.o: bossao.c bossao.h
+
+bossao.py: bossao.i
+	swig -v -includeall -python bossao.i
+
+bossao_wrap.o: bossao_wrap.c
+
+_bossao.so: bossao.o bossao_wrap.o ogg.o flac.o mp3.o oss_mixer.o
+	gcc -shared -o _bossao.so bossao.o bossao_wrap.o mp3.o flac.o ogg.o oss_mixer.o $(LDLIBS)
+
+clean:
+	rm -rf *~ *.o test bossao.py *.pyc _bossao.so bossao_wrap.c

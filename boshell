@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+
+#boshell - Shell interface for:
+#Boss Ogg - A Music Server
+#(c)2003 by David Salib
+#This project's homepage is: http://bossogg.wishy.org
+#
+#This program is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#You should have received a copy of the GNU General Public License
+#along with this program; if not, write to the Free Software
+#Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+from __future__ import generators
+from boss3.util.Session import *
+from boss3.xmlrpc import xmlrpclib
+from boss3.util import UTFstring
+from boss3 import bocmd
+from boss3 import version
+import getopt,os,sys,re,types,stat,string,time
+import atexit
+
+
+egoarray = ["boshell - A Shell for Boss Ogg", "Authors: David Salib, Ted Kulp", "Version: " + version._boss_version]
+
+def ego():
+	for i in egoarray:
+		print i
+
+def usage():
+	#ego
+	#print """boshell usage: [--Host Bossogg hosturl]"""
+	print "Boshell - A command line client for Boss Ogg"
+
+def promptloop():
+	bocmdln = bocmd.Bocmd()
+	bocmdln.cmdloop(bocmdln)
+
+def main():
+	session = Session()
+	session['loglevel'] = 1
+	#atexit.register(ego)
+	#longoptions=["verbose", "help", "Host="]
+	longoptions=["help"]
+	host="http://127.0.0.1:4069"
+	verbose=0
+
+	# get command line arguments
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "vhH:",longoptions)
+	except getopt.GetoptError:
+		# print help information and exit:
+		usage()
+		sys.exit(2)
+
+	# Do something with them
+	# o is the option
+	# a is the argument
+	for o, a in opts:
+		#if o in ("-v", "--verbose"):
+		#	verbose+=1
+		if o in ("-h", "--help"):
+			usage()
+			sys.exit()
+		#if o in ("-H", "--Host"):
+		#	host = a
+	ego()
+	promptloop()
+
+if __name__ == "__main__":
+	main()
+
+# vim:ts=8 sw=8 noet

@@ -1,0 +1,22 @@
+CC = gcc
+CFLAGS = -ggdb -I/usr/include/python2.2 -DHAVE_ID3=1 -DHAVE_FLAC=1 -DHAVE_VORBIS=1
+CXXFLAGS = ${CFLAGS}
+LDLIBS = -ggdb -lz -logg -lvorbis -lvorbisfile -lstdc++ -lid3 -lFLAC
+#LDLIBS = -ggdb `pkg-config glib-2.0 --libs` -lstdc++
+
+all: id3.py _id3.so
+
+id3.py: id3.i
+	swig -v -includeall -python id3.i
+
+id3_wrap.o: id3_wrap.c
+
+_id3.so: id3.o id3lib_wrapper.o id3_wrap.o
+	gcc -shared -o _id3.so id3.o id3lib_wrapper.o id3_wrap.o ${LDLIBS}
+
+id3.o: id3.c id3.h id3lib_wrapper.h config.h
+
+id3lib_wrapper.o: id3lib_wrapper.cc id3.h id3lib_wrapper.h config.h
+
+clean:
+	rm -f *.o *.so *.os *~ *.pyc id3.py id3_wrap.c

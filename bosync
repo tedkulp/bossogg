@@ -1,0 +1,568 @@
+#!/usr/bin/env python
+
+#####
+##### This should still be considered beta
+##### - simon (Soahc)
+
+import sys, os, string, types, getopt, socket, re, time
+from stat import *
+from boss3.util import bosslog
+from boss3.xmlrpc import bossxmlrpclib as xmlrpclib
+
+log = bosslog.getLogger()
+
+verbose = 0
+quiet = 0
+
+supported_formats = [ "mp3", "flac", "ogg" ]
+
+value_regex = { "%artist%":"(?P<artistname>[^/]+)",
+				"%metaartist%":"(?P<metaartistname>[^/]+)",
+				"%album%":"(?P<albumname>[^/]+)",
+				"%song%":"(?P<songname>[^/]+)",
+				"%track%":"(?P<tracknum>\d+)",
+				"%year%":"(?P<year>\d+)",
+				"%genre%":"(?P<genre>[^/]+",
+				}
+
+# Generate the regex for supported formats
+
+ext_regex = []
+for ext in supported_formats:
+	regex = ""
+	for letter in ext:
+		if letter.isalpha():
+			regex = regex + "[%s%s]" % (letter.lower(), letter.upper())
+		else:
+			regex = regex + letter
+	ext_regex.append(regex)
+
+ext_regex = string.join(ext_regex, "|")
+value_regex["%ext%"] = "(?P<ext>"+ext_regex+")"
+rpc = 0
+
+del ext_regex
+del regex
+
+# Our configuration
+config = { "quiet":0,
+		   "sync_all":1,
+		   "delete":0,
+		   "add":0,
+		   "update":0,
+		   "force_commit":0,
+		   "interactive":0,
+		   "debug":0,
+		   "file_regex":[ ],
+		   "noop":0,
+		   "host":"http://localhost:4069",
+		   "defaults": {},
+		   "force": {}
+		   }
+		   
+		   
+file_stats = {}
+				
+
+options = (
+#( Short, Long, ArgName, Description ),
+( "h", "help",   "", 		"Help screen (Your reading it!)" ),
+( "v", "verbose","",		"Verbose output. -v = Info  -vv = Debug" ),
+( "D", "debug", "channels", "Enable debugging and display specified channels -D help gives help"),
+( "q", "quiet",  "", 		"No output to screen"),
+( "H", "host", "url",		"URL for the BossOgg server EG: http://localhost:4069/"),
+( "s", "sync", "", 			"Sync directory/subdirectories with the song database "
+  "(add/delete/modify)",),
+( "d", "delete", "", 		"Delete all files specified from the database"),
+( "a", "add", "",			"All all files specified to the database"),
+( "u", "update", "", 		"Update all song info in the DB with that from the filesystem"),
+( "n", "noop", "", 			"Go thru all the actions but don't modify the DB"),
+( "", "force-commit","",	"You should only use this when told to. This is used to "
+							"protect against insane things, like deleting over 50% of "
+  							"DB entries."),
+( "F", "format", "fmt/file","Specify the format of your music directory. You can "
+							"specifcy multiple formats, the first one to match will "
+							"be used. You can use the following options in your "
+	  						"format string: %artist% %metaartist% %album% %song% "
+							"%track% %year% %ext% %genre%. An example of a format string is "
+							"%artist%/%album%/%rack% - %song% # %metaartist%.%ext% ."
+							"If the format is a filename. Each line of the file is "
+							"treated as a -F and becomes a format to search for."),
+( "i","interactive", "","Prompt for song info (artist, album, etc)"),
+( "", "artist", "artist",	"Default artist to use where one can't be matched"), 
+( "", "album", "album",		"Default album to use where one can't be matched"), 
+( "", "track", "track",		"Default track number to use where one can't be matched"), 
+( "", "ARTIST", "artist",	"Force all songs to have this artist. Ignore matched"), 
+( "", "ALBUM", "album",		"Force all songs to have this album. Ignore matched"), 
+( "", "TRACK", "track",		"Force all songs to have this track number. Ignore matched"), 
+)
+
+
+class Completer:
+	cache = {}
+	current_artist = ""
+	
+	def __init__(self):
+		log.debug("interact", "Setting up readline completer")
+		artists = rpc.list("artists")
+		self.cache = dict([(str(artist["artistname"]), [artist["artistid"], []]) for artist in artists])
+
+
+	def get_artist(self, artist):
+		for art in self.cache.keys():
+			if art.lower() == artist.lower():
+				return art
+		self.cache[artist] = [-1, []]
+		return artist
+	
+	def add_album(self, artist, album):
+		artist = self.get_artist(artist)
+		if album not in self.cache[artist][1]:
+			self.cache[artist][1].append(album)
+
+	def artist(self, text, state):
+		matches = []
+		for artist in self.cache.keys():
+			if artist[:len(text)].lower() == text.lower():
+				matches.append(artist)
+		try:
+			return matches[state]
+		except:
+			return None
+
+	def album(self, text, state):
+		artist = self.get_artist(self.current_artist)
+
+		if self.cache[artist][0] != -1 and not self.cache[artist][1]:
+			albums = rpc.list("albums", self.cache[artist][0])
+			self.cache[artist][1] = [str(album["albumname"]) for album in albums]
+
+		matches = []
+		for album in self.cache[artist][1]:
+			if album[:len(text)].lower() == text.lower():
+				matches.append(album)
+
+		try:
+			return matches[state]
+		except:
+			return None
+
+comp = 0
+
+def display(msg, nl=1):
+	if not config["quiet"]:
+		if nl:
+			print msg
+		else:
+			sys.stdout.write(msg)
+			sys.stdout.flush()
+		
+
+def get_file_list(arg=0, dirname=0, names=0):
+
+	if type(arg) is types.DictType:
+		files = arg
+	else:
+		files = {}
+		
+	if not arg and not dirname:
+		raise "Need directory to walk"
+	if arg and not dirname:
+		
+		for dir in arg:
+			log.debug("file", "geting file list for %s", dir)
+			if not os.path.isdir(dir):
+				try:
+					st = os.stat(dir)
+				except:
+					log.error("Can't stat file %s", dir)
+					continue
+				file_stats[dir] = st
+				files[dir] = st[ST_MTIME]
+			else:	
+				os.path.walk(dir, get_file_list, arg=files)
+		return files
+	for name in names:
+		if name[0] == ".":
+			# File is hidden lets pretend we didn't see it.
+			continue
+		filename = os.path.join(dirname, name)
+		ext = os.path.splitext(filename)[1]
+		if not os.access(filename, os.F_OK|os.R_OK):
+			print "SKIPPING: Cannot access ", filename
+			continue
+		if not os.path.isfile(filename):
+			# Not a file
+			continue
+		if not ext or ext[1:].lower() not in supported_formats:
+			log.warning("SKIPPING: Unsupported format (%s) %s", ext[1:], filename)
+			continue
+
+		# Ok we should be safe now!
+		try:
+			st = os.stat(filename)
+		except:
+			log.info("Cannot stat %s", filename)
+
+		file_stats[filename] = st
+		files[filename] = st[ST_MTIME]
+
+	return files
+
+def file_info(file):
+	global comp
+	info = { 'artistname':'',
+			 'metaartistname':'',
+			 'albumname':'',
+			 'year':0000,
+			 'tracknum':0,
+			 'songname':'',
+			 'filename':file,
+			 #, 'track_peak':0.0,'track_gain':0.0,'album_peak':0.0,'album_gain':0.0
+			 'frontcover':''
+		   }
+
+	# Merge in the defaults so any that don't get changed will have those
+	info.update(config["defaults"])
+	
+	if not config["interactive"]:
+		for regex in config["file_regex"]:
+			match = regex[1].search(file)
+			if match:
+				regex[2] += 1
+				info.update(match.groupdict())
+				# Update with any info we want to force
+				info.update(config["force"])
+				return info
+		log.info("File does not match any format: %s", file)
+	else:
+		try:
+			import readline
+			readline.parse_and_bind("tab: complete")
+			if not comp:
+				comp = Completer()
+		except:
+			readline = None
+			
+		if readline:
+			readline.set_completer(comp.artist)
+		info["artistname"] = raw_input("Album Artist Name: ")
+		if readline:
+			comp.current_artist = info["artistname"]
+			readline.set_completer(comp.album)
+		info["albumname"] = raw_input("Album Name: ")
+		if readline:
+			comp.add_album(info["artistname"], info["albumname"])
+			readline.set_completer(None)
+		info["year"] = int(raw_input("Year: "))
+		info["tracknum"] = int(raw_input("Track Number: "))
+		info["Song Title"] = raw_input("Song Title: ")
+		if readline:
+			readline.set_completer(comp.artist)
+		info["Meta Artist"] = raw_input("Song Artist Name: ")
+
+		return info
+	
+
+def progress_meter(count, total):
+	if config["interactive"] or config["debug"]:
+		return
+	dot = (total/65) or 1
+	pct = (count*100)/total
+	if count == 1:
+		display("0% ", nl=0)
+		return
+	display("", nl=0)
+	if count == total:
+		display("100% ")
+		return
+   	if count in (round(total*0.25), round(total*0.50), round(total*0.75)):
+		display("%s%% " % pct, nl=0)
+		return
+	if pct == 100:
+		display("100%")
+		return
+	pos = count % 4
+	if pct and not (count % dot):
+		display(". ", nl=0)
+		return
+	else:
+		if pos == 0: display("\\", nl=0)
+		if pos == 1: display("|", nl=0)
+		if pos == 2: display("/", nl=0)
+		if pos == 3: display("-", nl=0)
+
+def process_changes(new_files, mod_files, del_files):
+	global rpc
+	if not config["noop"]:
+		rpc.db("importstart")
+
+	try:
+		# New/Modified Files
+		if new_files or mod_files:
+			total = len(new_files+mod_files)
+			display("Adding/Updating files: %d files" % total)
+			cnt = 0
+			errors = []
+			for file in new_files+mod_files:
+				cnt += 1
+				progress_meter(cnt, total)
+				time.sleep(0.02)
+				sinfo = file_info(file)
+				log.debug("import", "Importing %s", str(sinfo))
+				if not config["noop"]:
+					try:
+						rpc.db("importsong", sinfo)
+					except:
+						errors.append("Error on impor: %s (%s:%s)" % (file, sys.exc_value.faultCode, sys.exc_value.faultString))
+
+			if len(errors):
+				log.error("There were errors importing some songs:")
+				log.error(string.join(errors, "\n"))
+
+		if del_files:
+			display("Deleting files: %d files removed from database" % len(del_files))
+			if not config["noop"]:
+				rpc.db("importdelete", del_files)
+	except:
+		log.exception("Got exception during processing of data")
+
+	if not config["noop"]:
+		rpc.db("importend")
+
+def print_pretty_options():
+	optstr = {}
+	width = 0
+	textwrap = 76
+	# First pass is to work out the width settings
+	for option in options:
+		opt = "%-2s%-1s%s %s" % (
+			(option[0] and "-"+option[0] or ""),
+			(option[0] and option[1] and "|" or ""),		  
+			(option[1] and "--"+option[1] or ""),
+			(option[2] and "<"+option[2]+">" or ""))
+		if len(opt) > width:
+			width = len(opt)
+		optstr[option[1]] = opt
+
+	# Second pass is to wrap the descriptions and print out the info
+	for option in options:
+		wdesc = []
+		desc = option[3]
+
+		dwidth = textwrap - width
+		while len(desc) > dwidth:
+			split = desc[:dwidth].rfind(" ")
+			wdesc.append(" "*(width+3)+desc[:split])
+			desc = desc[split+1:]
+		if desc:
+			wdesc.append(" "*(width+3)+desc)
+		wdesc[0] = string.lstrip(wdesc[0])
+		fmtstr = "%%-%ds - %%s" % width
+		print fmtstr % (optstr[option[1]], string.join(wdesc, "\n"))
+
+
+def usage():
+	print "bosync: BossOgg Music Directory Syncer"
+	print "bosync [options] <dir1|file1> [dir2|file2] ....."
+	print
+	print "Default options are as if you specified --sync"
+	print "It will make the db match the directory you specify"
+	print 
+	print_pretty_options()
+	print
+	print "Other info here"
+		 
+
+def process_args(args):
+	# Make the opts list for getopts
+	shortopts = map(lambda x: x[0]+(x[0] and x[2] and ":"), options)
+	longopts = map(lambda x: x[1]+(x[1] and x[2] and "="), options)
+	shortopts = string.join(shortopts, '')
+
+	try:
+		opts, args = getopt.getopt(args, shortopts, longopts)
+	except getopt.GetoptError:
+		usage()
+		sys.exit(1)
+
+
+	for opt, arg in opts:
+		log.debug("interact", "got opts: %s %s", opt, arg)
+		if opt in ("-h", "--help"):
+			usage()
+			sys.exit(0)
+		if opt in ("-q", "--quiet"):
+			config["quiet"] = 1
+		if opt in ("-v", "--verbose"):
+			if log.getEffectiveLevel() == bosslog.WARNING:
+				log.setLevel(bosslog.INFO)
+				log.info("Verbose output enabled!")
+		if opt in ("-D", "--debug"):
+			config["debug"] = 1
+			log.setLevel(bosslog.DEBUG)
+			bosslog.set_channels(arg)
+			log.info("Debug output enabled. (Hope you have a large screen!)")
+		if opt in ("-H", "--host"):
+			config["host"] = arg
+			log.debug("network", "Setting rpc host to %s", host)
+		if opt in ("--force-commit", ):
+			log.debug("interact", "Whoa. Force commit eh? Things must be serious!")
+			config["force_commit"] = True
+		if opt in ("-F", "--format"):
+			if arg[0] == "/" and os.path.isfile(arg):
+				try:
+					fp = open(arg, "r")
+					lines = fp.readlines()
+					fp.close()
+				except:
+					log.error("Couldn't open file %s", arg)
+					sys.exit(1)
+					
+				for line in lines:
+					line = line.strip()
+					# Incase your wondering. [userfmt, re.comp, count]
+					config["file_regex"].append([line, 0, 0])
+			else:
+				config["file_regex"].append([arg, 0, 0])
+
+		# All these options are mutually exlusive so we will turn off all of them and
+		# keep the last one specified.
+		if opt in ("-s", "-a", "-d", "-u", "--sync", "--add", "--delete", "-update"):
+			config["sync_all"] = False
+			config["add"] = False
+			config["delete"] = False
+			config["update"] = False
+			if opt in ("-s", "--sync"):	config["sync_all"] = True
+			if opt in ("-d", "--delete"): config["delete"] = True
+			if opt in ("-a", "--add"): config["add"] = True
+			if opt in ("-u", "--update"): config["update"] = True
+		if opt in ("-n", "--noop"):
+			config["noop"] = True
+			display("Running in NOOP mode, DB will not be modified")
+		if opt in ("--artist",):
+			config["defatults"]["artistname"] = arg
+		if opt in ("--album",):
+			config["defatults"]["albumname"] = arg
+		if opt in ("--track",):
+			config["defatults"]["tracknum"] = arg
+		if opt in ("--genre",):
+			config["defatults"]["genrename"] = arg
+		if opt in ("--ARTIST",):
+			config["force"]["artistname"] = arg
+		if opt in ("--ALBUM",):
+			config["force"]["albumname"] = arg
+		if opt in ("--TRACK",):
+			config["force"]["tracknum"] = arg
+		if opt in ("--GENRE",):
+			config["force"]["genrename"] = arg
+		if opt in ("-i", "--interactive"):
+			config["interactive"] = True
+			
+
+	return args
+	
+	   
+def main():
+	global rpc
+	
+	if len(sys.argv)==1:
+		usage()
+		sys.exit(1)
+
+	args = process_args(sys.argv[1:])
+	
+	for regex in config["file_regex"]:
+		regstr = regex[0]
+		regstr = regstr.replace(".", "\.")
+		for k in value_regex.keys():
+			regstr = regstr.replace(k ,value_regex[k])
+		log.debug("config", "Parsed regex is: %s", regstr)
+			
+		recomp = re.compile(regstr)
+		if not recomp:
+			log.error("There was an error compiling the regex %s", regstr)
+			sys.exit(1)
+			
+		regex[1] = recomp
+
+
+	try:
+		log.debug("network", "Connecting to RPC server %s", config["host"])
+		rpc = xmlrpclib.ServerProxy(config["host"])
+		rpc.auth("login", "blah", "blah")
+		log.debug("network", "Connected to RPC server!")
+	except socket.gaierror, err:
+		log.critical("Couldn't connect to RPC server %s (%s)", config["host"], err[1])
+		sys.exit(err[0])
+	except:
+		log.critical("Coudln't connect to RPC server (%s) trace follows", config["host"])
+		raise
+		sys.exit(1)
+
+	display("Downloading file information from Server ... ", nl=0)
+	db_files = rpc.db("importcache")
+	display("%d files found" % len(db_files))
+	db_files = dict([(str(x["filename"]), x["modifieddate"]) for x in db_files])
+
+	display("Searching for local files ... ", nl=0)
+	local_files = get_file_list(args)
+	display("%d files found" % len(local_files))
+			
+	new_files = []
+	mod_files = []
+	del_files = []
+
+	local_fnames = local_files.keys()
+	db_fnames = db_files.keys()
+	if config["sync_all"]:
+		display("Looking for new/modified files .. Please wait")
+
+		for file in local_fnames:
+			if file in db_fnames:
+				if float(local_files[file]) > float(db_files[file]):
+					mod_files.append(file)
+			else:
+				new_files.append(file)
+
+	if config["sync_all"]:
+		for file in db_fnames:
+			if file not in local_fnames:
+				del_files.append(file)
+
+	if config["delete"]:
+		for file in local_fnames:
+			if file in db_fnames:
+				del_files.append(file)
+				
+	if config["add"]:
+		for file in local_fnames:
+			if file not in db_fnames:
+				new_files.append(file)
+
+	if config["update"]:
+		for file in db_fnames:
+			if file in local_fnames:
+				mod_files.append(file)
+
+	display("Found %d new, %s modified, %d deleted files" % (len(new_files), len(mod_files), len(del_files)))
+
+	if db_fnames:
+		pct = (len(del_files)*100)/len(db_fnames)
+		if pct > 50 and not config["force_commit"]:
+			display("Are you aware your about to delete over %d%% of your music collection?"%pct)
+			display("If this is ok with you please use the --force-commit option")
+			sys.exit(1)
+
+	if new_files or mod_files or del_files:
+		process_changes(new_files, mod_files, del_files)
+	else:
+		display("There are no changes to make!")
+
+	for regex in config["file_regex"]:
+		log.info("%s matched %d times", regex[0], regex[2])
+	
+if __name__ == "__main__":
+	main()
+
+# vim:ts=8 sw=8 noet

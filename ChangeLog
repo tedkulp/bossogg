@@ -1,0 +1,122 @@
+-- Version 0.13.4-rc3 - 09 Feb 2004 --
+* Fixed a bug where boss would seg if it couldn't get access to the audio
+  device.  It should shutdown gracefully.
+* Some typos and leftover boimport references have been squashed.
+
+-- Version 0.13.4-rc2 - 08 Feb 2004 --
+* Added the -u, --user to drop to a different user for actually running
+  boss
+* Removed the bossogg.log handler from bosslog.  This needs to be worked
+  out better and causes a lot of problems when running as a different user.
+
+-- Version 0.13.4rc1 - 06 Feb 2004 --
+* Gave the Makefiles some love so that all headers are included in a "make
+  dist"
+* Fixed the "doesn't let go of the port right away" bug.
+* Added genre support on the server side.
+* Rewrote the logging system. It now supports the concept of channels, so 
+  you can look at certain debug messages etc. It's based on the logging 
+  module for 2.3 but works with 2.2. See boss3/util/bosslog.py for details 
+  on how to use it.
+* The cursor for the sqlite module has been replaced with one that inherits 
+  the original but does checking of exceptions caused by the sql call, it
+  also automagicly locks out any other threads from writing to the database
+  at the same time. The self.lock.* wrappers around cursor.execute() are not
+  required now
+* Added bosync which is ment as a replacement for boimport. It's still 
+  missing some features but it is fucntional and can import/sync collections.
+* Totally rewrote the loop in Player.py.  NEXT and JUMP states are no longer
+  used.
+* Apply af_'s shout fixes
+* Made the Queue more modular, which should make it easier to add new queue or
+  end-of-queue types in the future.  The random queue now preshuffles so we
+  shouldn't get repeated songs.
+* Fixed the case sensitivity for artist and albums lists (ex. REM comes
+  after Rage Against the Machine now)
+* Updated the database schema to version 3 which adds an index to make
+  metaartist lookups MUCH faster
+* Implemented a different way of getting header stuff from some ID3V1 mp3
+  tags
+* Added new modules bossxmlrpclib and bossxmlrpcserver which are used 
+  to modify the standard modules xmlrpclib and SimpleXMLRPCServer so 
+  that in future if they need to be updated, they can be.
+* Added threaded server support to the XMLRPC Server. BossOgg can now
+  handle multiple queries at once. Some db intensive queries may still
+  cause it to block other queries.
+* Added support to gzip the xml payload of the http request if the 
+  client supports it. (If client sends "Accept-Encoding: gzip" header,
+  the server will respond with "Content-Encoding: gzip" header and gzip
+  the xml body)
+* Added support for py-xmlrpc module. If this module is installed, xml
+  parsing/dumping speed will be increased by about 5 times, it will also
+  use significantly less cpu in doing so too.
+* Fixed some typos in boimport to do with help and the printing of #
+* Fixed a bug in boimport that would cause files to inherit values from the
+  previous song that did have the value. (eg metaartist would flow thru to
+  every file until a new metartist was found)
+
+	
+-- Version 0.13.3 - 08 Oct 2003 --
+* Include pthread.h in bossao.h
+* Fix MP3 crash bug if file doesn't exist
+* Fixed another bug in the stop and play sequence (BrianHV)
+* Fixed a bug in playindex
+* Added info("endofqueue") command
+* Hitting stop and then play again while in endofqueue will start
+the same song over again instead of going to the next one
+* Some autotools work to fix libshout2 checking and also remove a
+lot of the -DHAVE_* lines from the configure script
+* Added the "stop" and "repeat" endofqueue functions
+* Rewrote the main loop to be more stable.  Fixed next so it would
+work right (Thanks BrianHV!)
+* Fixed a nasty seg bug in bossao
+* Changed the logic so that an album name can be used for multiple
+artists
+* Added a version number to the config file.  NOTE!!!  Auto-updating
+of config files do not work at this point.  The file will be wiped and
+recreated.  This should be the only time, however, that it needs to be
+done.
+* Changed the config file to add shout related variables
+* Fixed FLAC bug where current time wasn't getting reset
+* Fixed configure script to do libshout stuff semi-properly
+* Fixed track number metadata while importing
+* Support compiling out icecast2
+* Initial Icecast2 streaming support
+* Rewrote the player loop and most of the queue class to get
+rid of some stability issues
+* Workaround empty size fields of mp3
+* Try to correct broken mp3 tags
+* More vorbis/FLAC length fixes
+* Get rid of debugging printf in FLAC
+
+-- Version 0.13.2 - 02 Oct 2003 --
+* Fixed a bug where the status wasn't getting fixed after playindex
+* Fixed playindex
+* Changed top lists so that they descend from most to least played
+* Fixed the busy wait bug
+* Fixed the shutdown bug that occurs when there are no songs in
+the db
+* Implemented byte swapping for FLAC on big endian architectures
+* Always open ao device in little endian mode
+* Check the length of vorbis/FLAC comments properly
+* Made ogg/flac tag headers (ARTIST=) case insensitive, because XMMS
+apparently makes them the non-standard ALL CAPS
+* Changed README to say that gcc/g++ 3 or greater is required
+
+-- Version 0.13.1  - 30 Sep 2003 -- 
+* Some initial fixes for strict compiliers.
+* Playlist Management commands - the "edit" realm
+* edit("createplaylistfromqueue") command
+* Proper casting of info("stats") hash members
+* Cleanup of hash variable names
+* Cleanup of xmlrpc and CommandInterface documentation
+* Added load("playlist") command
+* Added load("shuffle") command
+* Added control("playindex") command (bug #0031)
+* Fixed python 2.3 errors (bug #0036)
+* Removed mad.h from ogg.c -- which shank said was classic (bug #0035)
+* Server will now shut down if the user does not have proper
+audio device priviledges (bug #0029)
+
+-- Version 0.13 - 22 Sep 2003 --
+* Initial Release of "boss3"

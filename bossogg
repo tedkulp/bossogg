@@ -1,0 +1,289 @@
+#!/usr/bin/env python
+
+#Boss Ogg - A Music Server
+#(c)2003 by Ted Kulp (wishy@comcast.net)
+#This project's homepage is: http://bossogg.wishy.org
+#
+#This program is free software; you can redistribute it and/or modify
+#it under the terms of the GNU General Public License as published by
+#the Free Software Foundation; either version 2 of the License, or
+#(at your option) any later version.
+#
+#This program is distributed in the hope that it will be useful,
+#but WITHOUT ANY WARRANTY; without even the implied warranty of
+#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#GNU General Public License for more details.
+#You should have received a copy of the GNU General Public License
+#along with this program; if not, write to the Free Software
+#Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+from boss3 import DatabaseSchema
+from boss3 import Database
+from boss3.util import bosslog
+from boss3 import Player
+#from boss3.xinesong import xinesong
+#import gstsong
+from boss3 import CommandInterface
+from boss3 import UserManager
+
+import getopt
+
+import signal
+import string
+import os
+import time
+import sys
+try:
+	import DLFCN
+except Exception:
+	pass
+try:
+	import pwd
+except Exception:
+	pass
+import imp
+import operator
+import socket
+import select
+import sha
+import codecs
+import binascii
+import random
+import cStringIO
+import zlib
+
+from boss3.util.Session import * 
+from boss3.util import ConfigFile
+
+log = bosslog.getLogger()
+
+def _loadModule(moduleName, start=False):
+
+	#try:
+		for i in moduleName:
+			lastdot = string.rfind(i, '.')
+			themodule = None
+			if lastdot > -1:
+				modulenameproper = i[lastdot:]
+				themodule = __import__(i, globals(), locals(), [modulenameproper])
+				if start is True and themodule is not None:
+					if 'BossClientInterface' in dir(themodule):
+						clientobj = themodule.BossClientInterface()
+						interfaces.append(clientobj)
+			else:
+				__import__(i)
+	#except Exception:
+	#	log.exception("Failed loading: %s" ( moduleName,))
+
+def stopBoss(signum, frame):
+
+	session = Session()
+	if session.hasKey('shuttingdown') == 0:
+		session['shuttingdown'] = 1
+		log.info("Shutting down boss3")
+
+		#Shutdown the player(s)
+		session['shutdown'] = 1
+
+		for i in interfaces:
+			i.shutdown()
+			del i
+
+		#Close the database connection
+		time.sleep(1)
+		if session.hasKey('loadedstate'):
+			log.info("Saving State...")
+			dbh.saveState(player)
+			log.info("Saved!")
+		dbh.disconnect()
+
+		log.info("Exiting")
+		sys.exit(0)
+
+def usage():
+	print "bossogg [options]"
+	print "Options:"
+	print " -d, --detach             Detachs the program into the background."
+	print " -p, --pidfile            Creates a pidfile to use to shutdown bossogg."
+	print " -u, --user               Drop to this user."
+	print " -v, --verbose            Turns on debugging info.  Use twice for extra info."
+	print " -D, --debug	<channels>   Turns on major debugging output"
+	print " -?, --help               Displays this message."
+
+def daemonize(stdin='/dev/null', stdout='/dev/null', stderr='/dev/null', pidfile=None):
+	'''Forks current process into a daemon. stdin, stdout, and stderr arguments 
+	are file names that are opened and used in place of the standard file descriptors
+	in sys.stdin, sys.stdout, and sys.stderr, which default to /dev/null.
+	Note that stderr is unbuffered, so output may interleave with unexpected order
+	if shares destination with stdout.'''
+	def forkToChild():
+		try: 
+			if os.fork()>0: sys.exit(0) # exit parent.
+		except OSError, e: 
+			sys.stderr.write("fork failed: (%d) %s\n" % (e.errno, e.strerror))
+			sys.exit(1)
+	# First fork; decouple
+	forkToChild()
+	#os.chdir("/") 
+	os.umask(0) 
+	os.setsid() 
+	# Second fork; create pidfile; redirect descriptors
+	forkToChild()
+	pid = str(os.getpid())
+	if pidfile: 
+		f = open(pidfile,'w+')
+		f.write("%s\n" % pid)
+		f.close()
+	si = open(stdin, 'r')
+	so = open(stdout, 'a+')
+	se = open(stderr, 'a+', 0)
+	os.dup2(si.fileno(), sys.stdin.fileno())
+	os.dup2(so.fileno(), sys.stdout.fileno())
+	os.dup2(se.fileno(), sys.stderr.fileno())
+	# I am a daemon!
+
+def runBoss():
+
+	sys.setdlopenflags(0)
+
+	pathname = os.path.dirname(sys.argv[0])
+	fullpath = os.path.abspath(pathname)
+
+	sys.path.append(fullpath)
+
+	detach = 0
+	pidfile = None
+
+	session = Session()
+	session['loglevel'] = 1
+
+	#gstsong.gstreamer_init()
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "?vdp:D:u:", ["verbose","help","detach","pidfile=", "debug=", "user="])
+	except getopt.GetoptError:
+		usage()
+		sys.exit(2)
+
+	for o, a in opts:
+		if o in ("-v", "--verbose"):
+			if detach == 0:
+				session['loglevel'] += 1
+				log.setLevel(bosslog.INFO)
+				
+		if o in ("-D", "--debug"):
+			if detach == 0:
+				log.setLevel(bosslog.DEBUG)
+				bosslog.set_channels(a)
+
+		if o in ("-u", "--user"):
+			usertuple = pwd.getpwnam(a)
+			if usertuple:
+				log.info("Starting boss as user: %s",a)
+				uid = usertuple[2]
+				session['uid'] = uid
+				if usertuple[5]:
+					log.info("Setting userdir: %s",usertuple[5])
+					session['userdir'] = usertuple[5]
+				os.setuid(uid)
+				os.seteuid(uid)
+
+		if o in ("-p", "--pidfile"):
+			pidfile = a
+
+		if o in ("-d", "--detach"):
+			session['loglevel'] = 0
+			detach = 1
+
+		if o in ("-?", "--help"):
+			usage()
+			sys.exit(2)
+
+	#Setup globals
+	session['cfg'] = ConfigFile.ConfigFile()
+
+	global dbh
+	global player
+	global interfaces 
+	interfaces = []
+
+	#Setup signal handlers
+	signal.signal(signal.SIGKILL, stopBoss)
+	signal.signal(signal.SIGSTOP, stopBoss)
+	signal.signal(signal.SIGQUIT, stopBoss)
+	signal.signal(signal.SIGTERM, stopBoss)
+	signal.signal(signal.SIGINT, stopBoss)
+
+	log.info("Boss3 Started - Python version %s", sys.version)
+
+	#Make sure database exists and is an up to date schema
+	schema = DatabaseSchema.DatabaseSchema()
+	dbfilename = schema.create()
+
+	#Setup the database
+	dbh = Database.Database()
+	dbh.dbname = dbfilename
+
+	log.debug("database", "Database Started")
+
+	#Connect to the database
+	log.debug("database", "Connecting to the database")
+	dbh.connect(True)
+	log.debug("database", "Connected")
+
+	#Load up the song cache
+	dbh.loadSongCache()
+	log.debug("cache", "Cache Loaded")
+
+	#Create the player object for passing to the CommandInterface
+	player = Player.Player(dbh)
+
+	#Create a UserManager instance
+	usrmgr = UserManager.UserManager(dbh)
+
+	#Create a CommandInterface instance
+	cmdint = CommandInterface.CommandInterface(player, dbh)
+
+	if detach == 1:
+		daemonize(pidfile=pidfile)
+	elif pidfile is not None:
+		try:
+			pid = str(os.getpid())
+			f = open(pidfile,'w+')
+			f.write("%s\n" % pid)
+			f.close()
+		except Exception:
+			log.exception("Could not write pid file.  Continuing...")
+
+	log.debug("network", "Starting XML-RPC Server")
+	_loadModule(["boss3.xmlrpc.XmlRpcServer"], True)
+
+	#log.debug("Starting Boss2 Compatible XML-RPC Server")
+	#_loadModule(["boss3.xmlrpc.Boss2XmlRpcServer"], True)
+
+	#log.debug("Starting Jabber Connection")
+	#_loadModule("boss3.jabber.BossJabber", True)
+
+	if (session.hasKey('haveaninterface') == False or session['haveaninterface'] == 0):
+		log.debug("network", "No Interfaces started.  Closing server...")
+		stopBoss(None, None)
+	else:
+		log.debug("database", "Loading Previously Saved State...")
+		dbh.loadState(player)
+		session['loadedstate'] = 1
+		log.debug("database", "Loaded!")
+		log.debug("audio", "Starting Player")
+		
+
+		player.start()
+		while (session.hasKey('shutdown') == 0):
+			time.sleep(.1)
+		stopBoss(None, None)
+
+	#stopBoss()
+
+
+if __name__ == "__main__":
+# added a comment to make a test commit      
+	runBoss()
+
+# vim:ts=8 sw=8 noet

@@ -1,0 +1,38 @@
+#!/bin/sh
+
+cd bossogg/xinesong
+swig -v -includeall -python xinesong.i 
+gcc -c xinesong.c xinesong_wrap.c -I/usr/include/python2.2 `xine-config --cflags`
+#ld -shared `xine-config --libs` xinesong.o xinesong_wrap.o -o _xinesong.so
+gcc -shared `xine-config --libs` xinesong.o xinesong_wrap.o -o _xinesong.so
+cd ../..
+
+cd bossogg/metadata
+make
+cd ../..
+
+cd bossogg/ripper
+make
+cd ../..
+
+#cdir=`pwd`
+#cd /usr/lib
+#HMM=`ls libgst*.so`
+#for file in $HMM ; do
+#list="$list -l${file:3:${#file}-6}"
+#done
+#cd /usr/lib/gstreamer-0.6/
+#HMM=`ls *.so`
+#for file in $HMM ; do
+#list="$list -l${file:3:${#file}-6}"
+#done
+#echo $list
+#cd $cdir
+#
+#cd gstsong
+#swig -v -importall -python gstsong.i 
+#gcc -c gstsong.c gstsong_wrap.c -I/usr/include/python2.2 `pkg-config gstreamer-0.6 --cflags`
+#ld --shared `pkg-config gstreamer-0.6 --libs-only-l` -L/usr/lib/gstreamer-0.6 \
+#-laudiofile $list -rpath /usr/lib/gstreamer-0.6 gstsong.o gstsong_wrap.o -o _gstsong.so
+##ld --shared `pkg-config gstreamer-0.6 --libs-only-l` -L/usr/lib/gstreamer-0.6 -rpath /usr/lib/gstreamer-0.6 gstsong.o gstsong_wrap.o -o _gstsong.so
+#cd ..

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+
+cd bossogg/xinesong
+rm -rf *.pyc *.o *.so *.os
+cd ..
+
+cd bossao
+make clean
+cd ..
+
+cd metadata
+make clean
+cd ..
+
+cd ripper
+make clean
+cd ../..
+

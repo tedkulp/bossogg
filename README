@@ -1,0 +1,72 @@
+Boss Ogg -- A Music Server
+
+This is a quick README designed to help you get bossogg compiled and running.
+
+Please use the forums at http://bossogg.wishy.org or drop by #bossogg on
+irc.oftc.net for further help and to address issues not covered here.
+
+- Requirements
+
+In order to compile boss3, here is a list of what you will need:
+
+	- gcc/g++ 3.0 or greater
+	- Python 2.2 (http://python.org)
+	- Sqlite 2.8.3 (http://www.hwaci.com/sw/sqlite)
+	- Pysqlite 0.4.3 (http://pysqlite.sourceforge.net)
+	- libao 0.8.3 (http://www.xiph.org)
+
+These libs are optional and are only required for certain types of media.  You
+should have at least one of these, or else it's not going to be very useful:
+
+	- libvorbis/libvorbisfile 1.0 (for Ogg Vorbis support)
+	  (http://www.vorbis.com)
+	- libflac 1.1.0 (for Flac support) (http://flac.sourceforge.net)
+	- libmad 0.15 (for MP3 support) (http://www.underbit.com/products/mad)
+	- libid3 3.8.3 (for id3/mp3 metadata support)
+	  (http://id3lib.sourceforge.net)
+
+To compile the optional ripper, you will also need:
+
+	- libcddb 0.9.4 (http://libcddb.sourceforge.net)
+	- libcdparanoia 3.9.8 (http://www.xiph.org/paranoia)
+
+You will need the development versions of these packages if compiling you are
+compiling it yourself.
+
+You can checkout out the latest deveopment version with subversion (it's like
+CVS but better): svn co http://svn.wishy.org/svn/repos/boss3.  In order to
+compile it, you will also need the following:
+
+	- swig 1.3.16+ (http://www.swig.org)
+	- subversion (http://subversion.tigris.org)
+
+- Compilation
+
+Compilation and installion are very typical for unix applications.
+'./configure' to configure the program to your system ('./configure --help'
+will show you some flags). 'make' will build the python modules.  'make install'
+will install the program.
+
+- Running
+
+Start the server with 'bossogg'. There is an import script called
+bosync to import songs (run with --help for some help with that).  Importing
+must be done while the bossogg daemon is running.
+
+There is also boshell, which is an included utility for sending simple commands
+to a running boss server.  It does not include a full command set, but it is
+very useful for running simple commands and great for testing configurations.
+Check it out.
+
+- Configuration
+
+The configuration file is now generated dynamically. If you run bossogg as a
+user (recommended), the settings will be stored in ~/.bossogg. The db is
+bossogg.db and the configuration file is bossogg.conf.  bossogg.conf has some
+basic settings that can be tweaked before the server is started.  Most of these
+can be changed on the fly as well.  Try not to edit this file if the server is
+running, because the config and what bossogg thinks is in the config file might
+become two different things.
+
+Please see the INSTALL document for more information.
+

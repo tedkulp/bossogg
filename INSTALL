@@ -1,0 +1,62 @@
+Boss Ogg INSTALL Docs
+Ted Kulp (wishy@users.sf.net)
+Written for Boss Ogg v0.13.4
+--------------------------
+
+Install of boss is a pretty simple affair these days.  One of the main goals
+of the rewrite was to make the install process much more simple.  All of the
+database and configuration file creation and administration is done pretty
+much behind the schenes.
+
+This document assumes that you will be using a source distribution of bossogg,
+so we'll quickly go though to steps to compile, install, and (hopefully) get
+boss playing for you.
+
+Download the tar.gz file and put it into a directory that you have access
+to.
+
+* untar zxvf bossogg-0.xx.tar.gz
+* cd bossogg-0.xx
+* ./configure
+
+The configure script will figure out what dependencies are installed.  You
+can use ./configure --help to see some options, though these are mostly for
+disabling options that you might not necessarily want.
+
+* make
+
+This will build the python modules.  If all goes well, it will take a minute
+or two and then return to the prompt without any errors.
+
+Now, you have two options.  You can run bossogg from the source directory if
+you don't have root priviledges.  However, if you do want to install it for
+system-wide use, do a
+
+* make install
+
+Boss is ready to go now.  You can start it with
+
+* bossogg (or ./bossogg if running from the source dir)
+
+You can also use the --help option to see what else it can do.  --detach is
+good for running it as a daemon.  --verbose is great for debugging.
+
+Now, it's time to import your songs.  This is probaby the trickiest part of
+the install process.  Because of the advanced type of metadata useage
+involved, import isn't an exact science.
+
+* bosync --help (./bosync --help)
+
+Because of the way importing works, the bossogg server needs to be running
+when bosync is run.  Bosync works in one of two ways.  If your collection
+is pretty well organized, you can use a prototype for importing.  For example,
+-F "/home/wishy/music/%artist%/%album% - %song%/%track% - %song%.%ext%" works
+very well for me.  However, most people have their music organized by the
+metadata tags.  If no format is given, as much information as possible will
+be grabbed from the tags themselves and used.  If you are having problems,
+use the -v option to see why it is not importing.  If we're missing a good
+way to import music, please give us some feedback.
+
+After the import is complete, it should start playing music.
+
+Good luck, and let us know how it went.
