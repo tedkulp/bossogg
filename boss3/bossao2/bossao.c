@@ -77,7 +77,7 @@ static gpointer producer_thread (gpointer p)
       g_mutex_lock (produce_mutex);
       filename = input_filename ();
       if (last_filename == NULL)
-       last_filename = input_filename ();
+	 last_filename = input_filename ();
       chunk = input_play_chunk (&size, &sample_num, &eof);
       g_mutex_unlock (produce_mutex);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
@@ -87,9 +87,9 @@ static gpointer producer_thread (gpointer p)
 
       if (eof) {
 	 if (last_sample_num == sample_num) {
-	    if (!eof_once) {
+	    if (eof_once != 2) {
 	       eof = 1;
-	       eof_once = 1;
+	       eof_once++;
 	    } else
 	       eof = 0;
 	 }
@@ -101,7 +101,7 @@ static gpointer producer_thread (gpointer p)
 	 if (last_sample_num == sample_num)
 	    eof = 1;
       }
-      if (eof || eof_once)
+      if (eof_once)
 	 g_usleep (40000);
       cur_chunk->eof = eof;
       
@@ -122,6 +122,8 @@ static gpointer producer_thread (gpointer p)
       }
       //LOG ("producing");
       thbuf_produce (thbuf, cur_chunk, producer_pos);
+      if (eof)
+	 g_usleep (40000);
       //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
       producer_pos %= THBUF_SIZE;
