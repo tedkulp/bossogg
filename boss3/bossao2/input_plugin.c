@@ -95,11 +95,12 @@ static gpointer get_symbol (GModule *lib, gchar *name)
 input_plugin_s *input_plugin_open (gchar *filename)
 {
    gint module_bind = -1;
-   if (GLIB_MINOR_VERSION < 4) {
-      printf ("glib < 2.4 detected, using lazy dynamic loading (may be slow)\n", GLIB_MINOR_VERSION);
-      module_bind = G_MODULE_BIND_LAZY;
-   } else
-      module_bind = G_MODULE_BIND_LOCAL;
+#ifndef G_MODULE_BIND_LOCAL
+#warning "glib < 2.4 detected, using lazy dynamic loading (may be slow)\n"
+   module_bind = G_MODULE_BIND_LAZY;
+#else
+   module_bind = G_MODULE_BIND_LOCAL;
+#endif
    GModule *lib = g_module_open (filename, module_bind);
    if (lib == NULL) {
       LOG ("Could not dlopen '%s': %s", filename, g_module_error ());

@@ -55,9 +55,9 @@ static gpointer get_symbol (GModule *lib, char *name)
 output_plugin_s *output_plugin_open (gchar *filename)
 {
    gint module_bind = -1;
-   if (GLIB_MINOR_VERSION < 4) {
-      printf ("glib < 2.4 detected, using lazy dynamic loading (may be slow)\n", GLIB_MINOR_VERSION);
-      module_bind = G_MODULE_BIND_LAZY;
+   if (!GLIB_CHECK_VERSION (2, 4, 0)) {
+      printf ("glib < 2.4 detected, using lazy dynamic loading (may be slow)\n");
+      module_bind = G_MODULE_BIND_LOCAL;
    } else
       module_bind = G_MODULE_BIND_LOCAL;
    GModule *lib = g_module_open (filename, module_bind);
