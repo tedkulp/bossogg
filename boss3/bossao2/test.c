@@ -95,7 +95,8 @@ static gpointer consumer (gpointer p)
       //}
       /* comment this next line if you want the producer to play audio */
       LOG ("out chunk is %d %p", size, chunk);
-      output_plugin_write_chunk_all (NULL, chunk, size);
+      if (chunk != NULL && size != 0)
+	 output_plugin_write_chunk_all (NULL, chunk, size);
       g_free (chunk);
       //pos++;
       cons_pos++;
