@@ -790,7 +790,7 @@ class Database:
 				log.debug("sqlquery", SQL, genrename)
 				cursor.execute(SQL, genrename)
 				for row in cursor.fetchall():
-					log.debug("sqlresult", row)
+					log.debug("sqlresult", "%s", row)
 					gid = row['genreid']
 				else:
 					SQL = "update genres set genrename = %s, modified_date = %s"
