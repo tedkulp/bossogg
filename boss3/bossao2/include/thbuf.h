@@ -23,7 +23,7 @@ typedef struct {
    GMutex *mutex;
    GCond *cond;
    gint count;
-} semaphore_t;
+} thbuf_sem_t;
 
 typedef struct {
    void **buf;
@@ -33,15 +33,15 @@ typedef struct {
    //int full, empty, paused;
    //int readers, writers, waiting;
    GMutex *mutex;
-   semaphore_t *empty, *full;
+   thbuf_sem_t *empty, *full;
 } thbuf_t;
 
 #define THBUF_SIZE 256
 
-semaphore_t *semaphore_new (int count);
-void semaphore_free (semaphore_t *semaphore);
-int semaphore_p (semaphore_t *semaphore);
-int semaphore_v (semaphore_t *sempahore);
+thbuf_sem_t *semaphore_new (int count);
+void semaphore_free (thbuf_sem_t *semaphore);
+int semaphore_p (thbuf_sem_t *semaphore);
+int semaphore_v (thbuf_sem_t *sempahore);
 
 int thbuf_produce (thbuf_t *buf, void *p, size_t size, int pos);
 void *thbuf_consume (thbuf_t *buf, size_t *size, int pos);

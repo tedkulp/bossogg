@@ -68,7 +68,7 @@ static void ready_encoder (void)
    gint bitrate;
    gint serialno = rand ();
    gint result, ret;
-   char *title = NULL;
+   gchar *title = NULL;
 
    bitrate = 196;
    title = strdup ("Bossogg Streaming Media Server");
@@ -121,9 +121,10 @@ gint output_open (PyObject *cfgparser)
    int port;
 
    if (cfgparser == NULL) {
+      LOG ("Using shout defaults");
       host = strdup ("127.0.0.1");
-      user = strdup ("source");
-      password = strdup ("test");
+      user = strdup ("user");
+      password = strdup ("password");
       mount = strdup ("/bossogg.ogg");
       port = 8000;
    } else {

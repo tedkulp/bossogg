@@ -154,6 +154,7 @@ class Player(threading.Thread):
 		self.songdetails = self.songqueue.getCurrentSong()		
 		if self.songdetails is not None:
 			log.debug("audio", "Calling bossao_play with filename %s", self.songdetails['filename'])
+			bossao.bossao_stop ()
 			bossao.bossao_play(self.songdetails['filename'])
 			log.debug("audio", "bossao_play returned")
 			self.playedflag = 1
@@ -259,7 +260,7 @@ class Player(threading.Thread):
 			time.sleep(1)
 			log.debug("audio", "Calling shutdown")
 			#bossao.bossao_shutdown(self.lib)
-			bossao.bossao_stop ()
+			#bossao.bossao_stop ()
 			bossao.bossao_free ()
 		#bossao.bossao_close_mixer(self.mixer)
 		log.debug("audio", "Closing lib")

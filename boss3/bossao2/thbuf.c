@@ -40,9 +40,9 @@ static gint buf_size = 0;
 
 /* allocate a new semaphore
    mutex is the pre-allocated mutex to associate with the semaphore */
-semaphore_t *semaphore_new (gint count)
+thbuf_sem_t *semaphore_new (gint count)
 {
-   semaphore_t *sem = (semaphore_t *)g_malloc (sizeof (semaphore_t));
+   thbuf_sem_t *sem = (thbuf_sem_t *)g_malloc (sizeof (thbuf_sem_t));
    sem->mutex = g_mutex_new ();
    sem->cond = g_cond_new ();
 
@@ -53,7 +53,7 @@ semaphore_t *semaphore_new (gint count)
 
 /* free a semaphore
    the mutex associated with it is NOT freed */
-void semaphore_free (semaphore_t *sem)
+void semaphore_free (thbuf_sem_t *sem)
 {
    g_cond_free (sem->cond);
 
@@ -62,7 +62,7 @@ void semaphore_free (semaphore_t *sem)
 
 /* performs a p operation on the semaphore
    returns the count of the semaphore */
-gint semaphore_p (semaphore_t *sem)
+gint semaphore_p (thbuf_sem_t *sem)
 {
    // wait on the count, decrement it 
    g_mutex_lock (sem->mutex);
@@ -77,7 +77,7 @@ gint semaphore_p (semaphore_t *sem)
 
 /* performs a v operation on the semaphore
    returns the count of the semaphore */
-int semaphore_v (semaphore_t *sem)
+int semaphore_v (thbuf_sem_t *sem)
 {
    // increment the count, signal the others 
    g_mutex_lock (sem->mutex);

@@ -72,7 +72,7 @@ gdouble _input_time_total (song_s *song)
 */
 gdouble _input_time_current (song_s *song)
 {
-   LOG ("TODO: fix current time with threaded buffer");
+   //LOG ("TODO: fix current time with threaded buffer");
    private_ogg_s *p_ogg = (private_ogg_s *)song->private;
    return ov_time_tell (&p_ogg->vorbis_file);
 }

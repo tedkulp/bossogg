@@ -16,7 +16,7 @@ if FLAC_OPT
 FLAC_LIB=input_flac.la
 input_flac_la_LDFLAGS=-module
 input_flac_la_LDLIBS=-lFLAC
-input_flac_la_SOURCES=input_flac.c input_plugin.c
+input_flac_la_SOURCES=input_flac.c input_plugin.c thbuf.c
 endif
 
 if SHOUT_OPT
@@ -24,7 +24,7 @@ USE_SHOUT=shout.c
 endif
 
 CFLAGS+= -Wall -ggdb -pthread -Wno-import -fPIC -Iinclude `pkg-config glib-2.0 --cflags`
-LDFLAGS += `pkg-config glib-2.0 gthread-2.0 gmodule-2.0 --libs` -lasound
+LDFLAGS += `pkg-config glib-2.0 gthread-2.0 gmodule-2.0 --libs`
 
 python_PYTHON=__init__.py bossao.py
 noinst_PROGRAMS=test

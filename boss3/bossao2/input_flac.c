@@ -34,8 +34,10 @@ static char *plugin_name="flac";
 typedef struct private_flac_t {
    gdouble time_total;
    gdouble time_current;
+   gint samples_total;
+   gint samples_current;
    FLAC__FileDecoder *decoder;
-   semaphore_t *sem;
+   thbuf_sem_t *sem;
    gushort *buffer;
    gint buffer_size;
    gint was_metadata;
@@ -96,7 +98,7 @@ gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
       LOG ("song is finished 2");
       return NULL;
    }
-   return p_flac->buffer;
+   return (gchar *)p_flac->buffer;
 }
 
 static void error_callback (const FLAC__FileDecoder *decoder,
@@ -137,7 +139,7 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
       }
    }
 #ifdef WORDS_BIGENDIAN
-  guchar *buf_pos = buf;
+  guchar *buf_pos = buf; 
   guchar *buf_end = buf + sizeof (buf);
   while (buf_pos < buf_end) {
     guchar p = *buf_pos;
@@ -147,12 +149,18 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
   }
 #endif
 
+  p_flac->samples_current += samples;
   p_flac->time_current += ((gdouble)samples) / frame->header.sample_rate;
   p_flac->was_metadata = 0;
   
   if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE) {
      song->finished = 1;
      LOG ("song is finished 3");
+     semaphore_v (p_flac->sem);
+  }
+  if (p_flac->samples_current  >= p_flac->samples_total) {
+     LOG ("song is finished 4: %cur: d tot: %d", p_flac->samples_current, p_flac->samples_total);
+     song->finished = 1;
      semaphore_v (p_flac->sem);
   }
   
@@ -214,6 +222,8 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
    p_flac->time_total = ((gdouble)block->data.stream_info.total_samples) /
       block->data.stream_info.sample_rate;
    p_flac->time_current = 0;
+   p_flac->samples_total = block->data.stream_info.total_samples;
+   p_flac->samples_current = 0;
 
    FLAC__metadata_object_delete (block);
    FLAC__metadata_simple_iterator_delete (it);

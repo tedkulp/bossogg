@@ -32,9 +32,10 @@
 static thbuf_t *thbuf;
 static GMutex *pause_mutex, *produce_mutex;
 static GThread *producer, *consumer;
-static gint producer_pos = 0;
-static gint consumer_pos = 0;
+static gint producer_pos;
+static gint consumer_pos;
 static gint paused = 1;
+static gint quit;
 
 /* all the modules use this function to load symbols from dynamic libs */
 gpointer get_symbol (GModule *lib, gchar *name)
@@ -55,13 +56,28 @@ static gpointer producer_thread (gpointer p)
 
    while (1) {
       chunk = input_play_chunk (&size, NULL/*&chunks[producer_pos * BUF_SIZE]*/);
+      if (quit) {
+	 LOG ("quitting");
+	 thbuf_produce (thbuf, chunk, size, producer_pos);
+	 g_mutex_unlock (pause_mutex);
+	 g_thread_exit (NULL);
+      }
       g_mutex_lock (produce_mutex);
       //LOG ("about to produce %d", producer_pos);
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
-	 g_usleep (100000);
 	 g_mutex_unlock (produce_mutex);
+	 g_usleep (100000);
+	 if (quit) {
+	    LOG ("quitting");
+	    g_thread_exit (NULL);
+	 }
 	 continue;
+      }
+      if (quit) {
+	 LOG ("quitting");
+	 g_mutex_unlock (pause_mutex);
+	 g_thread_exit (NULL);
       }
       thbuf_produce (thbuf, chunk, size, producer_pos);
       //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
@@ -72,7 +88,6 @@ static gpointer producer_thread (gpointer p)
       }
       g_mutex_unlock (produce_mutex);
       g_usleep (0);
-      //g_thread_yield ();
    }
 
    return NULL;
@@ -90,8 +105,12 @@ static gpointer consumer_thread (gpointer p)
       chunk = (gchar *)data;
       if (chunk == NULL || size == 0) {
 	 LOG ("got a NULL chunk %p %d...", chunk, size);
-	 g_usleep (10000);
 	 g_mutex_unlock (pause_mutex);
+	 g_usleep (10000);
+	 if (quit) {
+	    LOG ("quitting");
+	    g_thread_exit (NULL);
+	 }
 	 continue;
       }
 
@@ -104,9 +123,14 @@ static gpointer consumer_thread (gpointer p)
       output_mod_plugin_run_all (chunk, size);
       output_plugin_write_chunk_all (chunk, size);
       g_free (chunk);
+      if (quit) {
+	 LOG ("quitting");
+	 thbuf_consume (thbuf, &size, consumer_pos);
+	 g_mutex_unlock (produce_mutex);
+	 g_thread_exit (NULL);
+      }
       // give up the context in case the producer needs to get ahead
       g_usleep (0);
-      //g_thread_yield ();
    }
 
    return NULL;
@@ -121,7 +145,7 @@ static void init_plugins (PyObject *cfgparser)
    input_plugin_open ("input_flac.la");
 
    output_plugin_open ("output_ao.la");
-   //output_plugin_open ("output_shout.la");
+   output_plugin_open ("output_shout.la");
    //output_plugin_open ("output_alsa.la");
 
    output_mod_plugin_open ("output_mod_softmix.la");
@@ -141,25 +165,23 @@ static void bossao_thread_init (void)
 #endif
 }
 
-inline void bossao_pause (void)
+void bossao_pause (void)
 {
-   //g_mutex_lock (produce_mutex);
    if (paused == 0) {
       g_mutex_lock (pause_mutex);
       paused = 1;
    }
 }
 
-inline void bossao_unpause (void)
+void bossao_unpause (void)
 {
-   //g_mutex_unlock (produce_mutex);
    if (paused == 1) {
       g_mutex_unlock (pause_mutex);
       paused = 0;
    }
 }
 
-inline void bossao_stop (void)
+void bossao_stop (void)
 {
    g_mutex_lock (produce_mutex);
    if (paused == 0) {
@@ -178,12 +200,10 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
    bossao_thread_init ();
    init_plugins (cfgparser);
 
-   output_plugin_open_all (NULL);
+   output_plugin_open_all (cfgparser);
 
    pause_mutex = g_mutex_new ();
    produce_mutex = g_mutex_new ();
-   g_mutex_lock (pause_mutex);
-   g_mutex_lock (produce_mutex);
    thbuf = thbuf_new (THBUF_SIZE);
 
    if (filename != NULL)
@@ -213,11 +233,15 @@ void bossao_join (void)
 /* free the song, close the plugins */
 void bossao_free (void)
 {
+   quit = 1;
+   bossao_stop ();
+   bossao_join ();
+   
    input_plugin_close_all ();
    output_plugin_close_all ();
 
-   g_mutex_free (pause_mutex);
-   g_mutex_free (produce_mutex);
+   //g_mutex_free (pause_mutex);
+   //g_mutex_free (produce_mutex);
    thbuf_free (thbuf);
 }
 
@@ -255,6 +279,8 @@ gint bossao_seek (gdouble secs)
    //thbuf_clear (thbuf);
    ret = input_seek (secs);
    bossao_unpause ();
+
+   return 0;
 }
 
 gdouble bossao_time_total (void)

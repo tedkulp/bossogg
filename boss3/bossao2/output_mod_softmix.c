@@ -48,6 +48,6 @@ void output_mod_run (gchar *chunk, gint size)
    // the samples by the volume percentage you want
    gshort *p = chunk;
    for (i = 0; i < size / 2; i++) {
-      //*p++ *= 0.2;
+      //*p++ *= 0.0 ;
    }
 }

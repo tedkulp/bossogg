@@ -194,9 +194,7 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size)
    static gint i;
    static gint ret;
    static struct audio_dither dither;
-   static guchar buffer2[BUF_SIZE];
-   static guchar *out_ptr = buffer2;
-   static guchar *out_buf_end = buffer2 + BUF_SIZE;
+   guchar *out_ptr = buffer;
 
    mad_timer_add (&p_mp3->mp3_timer, p_mp3->mp3_frame.header.duration);
    mad_synth_frame (&p_mp3->mp3_synth, &p_mp3->mp3_frame);
@@ -216,14 +214,7 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size)
 	 *(out_ptr++) = sample & 0xff;
 	 *(out_ptr++) = sample >> 8;
       }
-
-      if (out_ptr == buffer2 + p_mp3->mp3_synth.pcm.length * 4) {
-	 memcpy (buffer, buffer2, BUF_SIZE);
-	 //output_plugin_write_chunk_all (NULL, buffer, BUF_SIZE);
-	 out_ptr = buffer2;
-      }
    }
-  
 
    while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT)
       ;
