@@ -105,19 +105,16 @@ static gpointer producer_thread (gpointer p)
    }
       
    while (1) {
-      //g_mutex_lock (produce_mutex);
       //semaphore_p (prod_pause_sem);
       static_semaphore_p (&prod_pause_sem);
       chunk = input_play_chunk (&size, &sample_num, &eof);
       //cur_chunk = &chunks[pos];
       //semaphore_v (prod_pause_sem);
       static_semaphore_v (&prod_pause_sem);
-      //g_mutex_unlock (produce_mutex);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
       cur_chunk->chunk = chunk;
       cur_chunk->size = size;
       cur_chunk->sample_num = sample_num;
-      //cur_chunk->mutex = g_mutex_new ();
       if (quit) {
 	 g_usleep (100000);
 	 //thbuf_produce (thbuf, cur_chunk);
@@ -141,13 +138,10 @@ static gpointer producer_thread (gpointer p)
       }
       cur_chunk->eof = eof;
       //LOG ("producing");
-      //g_mutex_lock (produce_mutex);
       //thbuf_produce (thbuf, cur_chunk);
       pos = thbuf_static_produce (&thbuf, cur_chunk);
-      //g_mutex_unlock (produce_mutex);
 
       //buffer_free_callback (old_chunk);
-      //g_usleep (0);
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
 	 //semaphore_p (produce_eof_sem);
@@ -156,13 +150,6 @@ static gpointer producer_thread (gpointer p)
       }
 
       last_sample_num = sample_num;
-      /*
-      if (quit) {
-	 g_usleep (10000);
-	 LOG ("stopping thread");
-	 g_thread_exit (NULL);
-      }
-      */
    }
 
    return NULL;
@@ -183,32 +170,15 @@ static gpointer consumer_thread (gpointer p)
    LOG ("done waiting");
    
    while (1) {
-      //LOG ("consuming");
-      //g_mutex_lock (pause_mutex);
       //semaphore_p (cons_pause_sem);
       static_semaphore_p (&cons_pause_sem);
       //size = thbuf_current_size (thbuf);
       size = thbuf_static_current_size (&thbuf);
-      //if (size > 10)
       //chunk = (chunk_s *)thbuf_consume (thbuf, &count);
       chunk = (chunk_s *)thbuf_static_consume (&thbuf, &count);
       //semaphore_v (cons_pause_sem);
       static_semaphore_v (&cons_pause_sem);
 
-	 //else {
-	 //LOG ("filling buffer...");
-	 //chunk = (chunk_s *)thbuf_consume (thbuf, &count);
-	 //g_usleep (0);
-	 //}
-	 /* else {
-	 LOG ("size is 0...");
-	 g_mutex_unlock (pause_mutex);
-	 g_usleep (10000);
-	 continue;
-	 }*/
-      // DO YOU NEED TO MOVE THIS INTO THE THBUF?
-      //g_mutex_lock (chunk->mutex);
-      //g_mutex_unlock (pause_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
 	 //semaphore_v (thbuf->empty);
@@ -216,76 +186,66 @@ static gpointer consumer_thread (gpointer p)
 	 continue;
       }
       if (chunk->chunk == NULL || chunk->size == 0) {
-	 LOG ("got a NULL chunk %d %d eof %d count %d", (gint)last_sample_num,
-	      (gint)input_plugin_samples_total (), chunk->eof, count);
+	 LOG ("got a NULL chunk %d %d eof %d count %d size %d", (gint)last_sample_num,
+	      (gint)input_plugin_samples_total (), chunk->eof, count, size);
 	 if (last_sample_num == chunk->sample_num) {
 	    LOG ("was eof?: %d", chunk->eof);
-	    //input_plugin_set_end_of_file ();
-	    //g_usleep (100000);
-	    //semaphore_p (eof_sem);
 	 }
 	 last_sample_num = chunk->sample_num;
+	 if (chunk->chunk)
+	    g_free (chunk->chunk);
+	 g_free (chunk);
 	 if (!chunk->eof) {
 	    LOG ("wasn't eof");
-	    //g_mutex_unlock (chunk->mutex);
-	    //semaphore_v (thbuf->empty);
 	    g_usleep (0);
-	    g_free (chunk);
 	    continue;
 	 } else {
 	    LOG ("got eof 1");
 	    input_plugin_set_end_of_file ();
 	    g_usleep (50000);
-	    //semaphore_v (thbuf->empty);
-	    //g_mutex_unlock (chunk->mutex);
-	    g_free (chunk);
-	    //semaphore_p (consume_eof_sem);
 	    static_semaphore_p (&consume_eof_sem);
 	    continue;
 	 }
       }
 
-      //if (chunk->eof)
-      //input_plugin_set_end_of_file ();
+      if (chunk->eof)
+	 input_plugin_set_end_of_file ();
       
       //LOG ("about to play %p of %d size buf size is %d", chunk->chunk, chunk->size, size);
       if (size == 1 || last_sample_num == chunk->sample_num) {
-	 LOG ("avoided weirdness");
-	 g_free (chunk->chunk);
-	 g_free (chunk);
+	 LOG ("avoided weirdness: %d", size);
 	 if (chunk->eof) {
 	    LOG ("got EOF 3");
+	    g_free (chunk->chunk);
+	    g_free (chunk);
 	    input_plugin_set_end_of_file ();
 	    g_usleep (50000);
 	    //semaphore_p (consume_eof_sem);
 	    static_semaphore_p (&consume_eof_sem);
+	    continue;
 	 }
+	 g_free (chunk->chunk);
+	 g_free (chunk);
 	 continue;
       }
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
-      //g_mutex_lock (pause_mutex);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
-
-      //semaphore_p (thbuf->full);
-      //semaphore_v (thbuf->empty);
-      //g_mutex_unlock (chunk->mutex);
-      //g_mutex_unlock (pause_mutex);
       last_sample_num = chunk->sample_num;
-      g_free (chunk->chunk);
-      g_free (chunk);
-      // give up the scheduler
-      //g_usleep (0);
 
       if (chunk->eof) {
 	 LOG ("got EOF 2");
+	 g_free (chunk->chunk);
+	 g_free (chunk);
 	 input_plugin_set_end_of_file ();
 	 g_usleep (50000);
 	 //semaphore_p (consume_eof_sem);
 	 static_semaphore_p (&consume_eof_sem);
 	 //g_usleep (10000);
-	 //continue;
+	 continue;
       }
 
+      g_free (chunk->chunk);
+      g_free (chunk);
 
       if (quit) {
 	 g_usleep (10000);
@@ -330,14 +290,6 @@ static void bossao_thread_init (void)
 
 void bossao_pause (void)
 {
-   /*
-   if (paused == 0) {
-      g_mutex_lock (pause_mutex);
-      paused = 1;
-      LOG ("paused");
-      }*
-   */
-   //semaphore_v (pause_sem);
    //if (cons_pause_sem->count != 0) {
    if (cons_pause_sem.count != 0) {
       //semaphore_p (cons_pause_sem);
@@ -356,13 +308,6 @@ void bossao_pause (void)
 
 void bossao_unpause (void)
 {
-   /*
-   if (paused == 1) {
-      g_mutex_unlock (pause_mutex);
-      paused = 0;
-      LOG ("unpaused");
-   }
-   */
    //cons_pause_sem->count = 0;
    cons_pause_sem.count = 0;
    //semaphore_v (cons_pause_sem);
@@ -377,25 +322,6 @@ gint first = 1;
 
 void bossao_stop (void)
 {
-   /*
-   LOG ("in stop");
-   if (stopped == 0) {
-      g_mutex_lock (produce_mutex);
-      LOG ("locked produce mutex");
-      stopped = 1;
-   } else {
-      LOG ("already stopped");
-      }
-   */
-   /*
-   if (paused == 0) {
-      g_mutex_lock (pause_mutex);
-      LOG ("locked pause mutex");
-      paused = 1;
-   } else {
-      LOG ("already paused");
-      }
-   */
    if (first == 0) {
       bossao_pause ();
    } else

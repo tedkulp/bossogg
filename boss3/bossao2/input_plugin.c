@@ -30,7 +30,7 @@
 #import "input_plugin.h"
 #import "bossao.h"
 
-static GMutex *current_mutex;
+static GStaticMutex current_mutex = G_STATIC_MUTEX_INIT;
 static input_plugin_s *current_plugin = NULL;
 static song_s *current_song = NULL;
 
@@ -55,63 +55,63 @@ void song_free (song_s *song)
 inline gint input_identify (gchar *filename)
 {
    gint ret;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_plugin != NULL) {
       ret = current_plugin->input_identify (filename);
    } else {
       LOG ("current plugin is NULL");
       ret = -1;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
 inline gint input_seek (gdouble len)
 {
    gint ret;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_song != NULL) {
       ret = current_plugin->input_seek (current_song, len);
    } else {
       LOG ("current song is NULL");
       ret = -1;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
 inline gdouble input_time_total (void)
 {
    gdouble ret;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_song != NULL) {
       ret = current_plugin->input_time_total (current_song);
    } else {
       LOG ("current song is NULL");
       ret = -1;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
 inline gdouble input_time_current (void)
 {
    gdouble ret;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_song != NULL) {
       ret = current_plugin->input_time_current (current_song);
    } else {
       LOG ("current song is NULL");
       ret = -1;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
 inline gchar *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof)
 {
    gchar *ret;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_song != NULL && current_plugin != NULL) {
       //LOG ("playing a chunk of %s", current_plugin->name);
       //g_usleep (0);
@@ -122,21 +122,21 @@ inline gchar *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof)
       LOG ("current song is NULL");
       ret = NULL;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
 inline gint input_finished (void)
 {
    gint ret;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_song != NULL) {
       ret = current_song->finished;
    } else {
       LOG ("current song is NULL");
       ret = 0;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
@@ -144,20 +144,22 @@ inline song_s *input_open (input_plugin_s *plugin, gchar *filename)
 {
    song_s *song = plugin->input_open (plugin, filename);
    song->filename = filename;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    current_song = song;
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return song;
 }
 
 inline gint input_close (void)
 {
-   gint ret;
-   g_mutex_lock (current_mutex);
+   gint ret = 0;
+   g_static_mutex_lock (&current_mutex);
    if (current_song != NULL) {
-      if (current_plugin != NULL)
+      if (current_plugin != NULL) {
+	 LOG ("calling input_close");
 	 ret = current_plugin->input_close (current_song);
-      else
+	 LOG ("done");
+      } else
 	 LOG ("current plugin was NULL!");
       current_song = NULL;
       current_plugin = NULL;
@@ -165,28 +167,28 @@ inline gint input_close (void)
       LOG ("already NULL");
       ret = -1;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
 inline gchar *input_name (void)
 {
    gchar *ret;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_plugin != NULL) {
       ret = current_plugin->input_name ();
    } else {
       LOG ("current plugin is NULL");
       ret = NULL;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
 inline gchar *input_filename (void)
 {
-   gchar *ret;
-   g_mutex_lock (current_mutex);
+   gchar *ret = NULL;
+   g_static_mutex_lock (&current_mutex);
    if (current_plugin != NULL) {
       if (current_song != NULL)
 	 ret = current_song->filename;
@@ -194,7 +196,7 @@ inline gchar *input_filename (void)
       LOG ("current plugin is NULL");
       ret = NULL;
    }
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
@@ -212,34 +214,34 @@ void input_plugin_clear (input_plugin_s *plugin)
       plugin->input_close = NULL;
       plugin->input_name = NULL;
    } else {
-      g_mutex_lock (current_mutex);
+      g_static_mutex_lock (&current_mutex);
       current_plugin = NULL;
-      g_mutex_unlock (current_mutex);
+      g_static_mutex_unlock (&current_mutex);
    }
 }
 
 /* set the currently used plugin to the given plugin */
 void input_plugin_set (input_plugin_s *plugin)
 {
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    current_plugin = plugin;
    current_song = NULL;
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
 }
 
 void input_plugin_set_end_of_file (void)
 {
+   g_static_mutex_lock (&current_mutex);
    if (current_song != NULL) {
-      g_mutex_lock (current_mutex);
       current_song->finished = 1;
-      g_mutex_unlock (current_mutex);
    } 
+   g_static_mutex_unlock (&current_mutex);
 }
 
 gint64 input_plugin_samples_total (void)
 {
    gint64 ret;
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_plugin != NULL) {
       if (current_song != NULL) {
 	 ret = current_plugin->input_samples_total (current_song);
@@ -252,7 +254,7 @@ gint64 input_plugin_samples_total (void)
       ret = -1;
    }
 
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    return ret;
 }
 
@@ -265,11 +267,6 @@ input_plugin_s *input_plugin_open (gchar *filename)
       return NULL;
    }
 
-   if (current_mutex == NULL) {
-      LOG ("initializing current mutex");
-      current_mutex = g_mutex_new ();
-   }
-   
    input_plugin_s *plugin = (input_plugin_s *)g_malloc (sizeof (input_plugin_s));
 
    plugin->input_identify = (input_identify_f)get_symbol (lib, "_input_identify");
@@ -287,9 +284,9 @@ input_plugin_s *input_plugin_open (gchar *filename)
    input_list = g_slist_append (input_list, plugin);
 
    if (current_plugin == NULL) {
-      g_mutex_lock (current_mutex);
+      g_static_mutex_lock (&current_mutex);
       current_plugin = plugin;
-      g_mutex_unlock (current_mutex);
+      g_static_mutex_unlock (&current_mutex);
    }
 
    LOG ("Input plugin '%s':%p, for '%s' files loaded", filename, plugin, plugin->name);
@@ -302,10 +299,10 @@ void input_plugin_close (input_plugin_s *plugin)
 {
    input_list = g_slist_remove (input_list, plugin);
 
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    if (current_plugin == plugin)
       current_plugin = NULL;
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
    
    g_module_close (plugin->lib);
    g_free (plugin);
@@ -330,9 +327,9 @@ void input_plugin_close_all (void)
       return;
    }
 
-   g_mutex_lock (current_mutex);
+   g_static_mutex_lock (&current_mutex);
    current_plugin = NULL;
-   g_mutex_unlock (current_mutex);
+   g_static_mutex_unlock (&current_mutex);
 
    g_slist_foreach (input_list, input_plugin_close_all_helper, NULL);
 }

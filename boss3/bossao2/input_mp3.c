@@ -44,7 +44,7 @@ typedef struct private_mp3_t {
    gint mp3_start;
    gint mp3_frame_count;
    FILE *mp3_file;
-   guchar mp3_read_buf[READ_BUFFER_SIZE];
+   gchar mp3_read_buf[READ_BUFFER_SIZE];
    struct mad_stream mp3_stream;
    struct mad_frame mp3_frame;
    struct mad_synth mp3_synth;
@@ -153,6 +153,7 @@ static gint mp3_fill_input (private_mp3_s *p_mp3)
 
    if (p_mp3->mp3_stream.next_frame != NULL) {
       remaining = p_mp3->mp3_stream.bufend - p_mp3->mp3_stream.next_frame;
+      //LOG ("remaining is %d", remaining);
       memmove (p_mp3->mp3_read_buf, p_mp3->mp3_stream.next_frame, remaining);
       read_start = p_mp3->mp3_read_buf + remaining;
       size = READ_BUFFER_SIZE - remaining;
@@ -218,6 +219,11 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size, gint64 *sample_nu
    p_mp3->mp3_elapsed_time = ((float)mad_timer_count (p_mp3->mp3_timer,
 						      MAD_UNITS_MILLISECONDS))/1000.0;
 
+   if (p_mp3->mp3_synth.pcm.length == 0) {
+      *size = 0;
+      return DECODE_BREAK;
+   }
+   
    for (i = 0; i < p_mp3->mp3_synth.pcm.length; i++) {
       gint sample;
       sample = (gint)audio_linear_dither (16, p_mp3->mp3_synth.pcm.samples[0][i], &dither);
@@ -249,21 +255,16 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *e
 {
    gint buf_size;
    gchar *buffer = (gchar *)g_malloc (BUF_SIZE);
-   if (buffer == NULL) {
-      LOG ("BOOO a NULL malloc!");
-      return NULL;
-   }
 
    if (mp3_read (song, buffer, &buf_size, sample_num) == DECODE_BREAK) {
       //song->finished = 1;
       private_mp3_s *mp3 = (private_mp3_s *)song->private;
       LOG ("setting eof...");
       *eof = 1;
-      *size = buf_size;
       *sample_num = mp3->samples_total;
       //g_free (buffer);
    } else
-      eof = 0;
+      *eof = 0;
    
    //output_plugin_write_chunk_all (NULL, buffer, buf_size);
    *size = buf_size;
@@ -373,8 +374,6 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
 	 break;
    }
 
-   LOG ("mp3 file '%s' opened", filename);
-
    return song;
 }
 
@@ -384,9 +383,9 @@ gint _input_close (song_s *song)
    mad_synth_finish (&p_mp3->mp3_synth);
    mad_frame_finish (&p_mp3->mp3_frame);
    mad_stream_finish (&p_mp3->mp3_stream);
-   
-   fclose (p_mp3->mp3_file);
 
+   fclose (p_mp3->mp3_file);
+   
    song_free (song);
    //g_free (p_mp3);
    
