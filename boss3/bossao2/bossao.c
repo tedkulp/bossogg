@@ -87,7 +87,7 @@ static gpointer producer_thread (gpointer p)
 
       if (eof) {
 	 LOG ("got eof");
-	 if (last_sample_num == sample_num && last_sample_num > 0) {
+	 if (last_sample_num > 0) {
 	    if (eof_once != 1) {
 	       eof = 1;
 	       eof_once = 1;
@@ -106,10 +106,15 @@ static gpointer producer_thread (gpointer p)
       }
       if (eof_once) {
 	 LOG ("sleeping...");
+	 thbuf_produce (thbuf, cur_chunk, producer_pos);
+	 producer_pos++;
+	 producer_pos %= THBUF_SIZE;
 	 while (last_filename == input_filename ())
 	    g_usleep (1000);
-	 //g_usleep (100000);
+	 g_usleep (100000);
 	 eof_once = 0;
+	 LOG ("continuing");
+	 continue;
       }
       cur_chunk->eof = eof;
       
@@ -130,13 +135,15 @@ static gpointer producer_thread (gpointer p)
       }
       //LOG ("producing");
       thbuf_produce (thbuf, cur_chunk, producer_pos);
+      /*
       if (eof) {
 	 if (!eof_once) {
 	    g_usleep (40000);
 	    eof = 0;
 	    eof_once = 1;
 	 }
-      }
+	 }
+      */
       //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
       producer_pos %= THBUF_SIZE;
@@ -186,13 +193,9 @@ static gpointer consumer_thread (gpointer p)
       if (chunk->eof) {
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
-	 //consumer_pos++;
-	 //consumer_pos %= THBUF_SIZE;
-	 g_usleep (100000);
+	 g_usleep (200000);
 	 continue;
       }
-      //consumer_pos++;
-      //consumer_pos %= THBUF_SIZE;
 
       if (consumer_pos == 0) {
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
