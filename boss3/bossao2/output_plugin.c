@@ -86,7 +86,7 @@ static void output_plugin_open_all_helper (gpointer item, gpointer user_data)
 void output_plugin_open_all (PyObject *cfgparser)
 {
    if (output_list == NULL) {
-      LOG ("Output plugin hash table is uninitialized");
+      LOG ("Output plugin list is uninitialized");
       return;
    }
 
@@ -107,7 +107,7 @@ static void output_plugin_close_all_helper (gpointer item, gpointer user_data)
 void output_plugin_close_all (void)
 {
    if (output_list == NULL) {
-      LOG ("Output plugin hash table is already empty");
+      LOG ("Output plugin list is already empty");
       return;
    }
 
@@ -133,7 +133,7 @@ void output_plugin_write_chunk_all (guchar *buffer, gint size)
    write_chunk_all_s s;
    
    if (output_list == NULL) {
-      LOG ("Output plugin hash table is uninitialized");
+      LOG ("Output plugin list is uninitialized");
       return;
    }
 

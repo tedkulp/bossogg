@@ -17,7 +17,7 @@
 
 import Database
 #import gstsong
-from bossao import bossao
+from bossao2 import bossao
 #import xinesong.xinesong
 import boss3.metadata.id3
 import sys
@@ -90,7 +90,8 @@ class Player(threading.Thread):
 
 	def setVolume(self, volume):
 		if self.mixer is not None:
-			bossao.bossao_setvol(self.mixer, volume)
+			print "vol net yet implemented"
+			#bossao.bossao_setvol(self.mixer, volume)
 
 	def getStatus(self):
 		result = {}
@@ -134,7 +135,8 @@ class Player(threading.Thread):
 
 	def initializeao(self):
 		self.songdetails = self.songqueue.getCurrentSong()
-		opendev = bossao.bossao_start(self.lib, self.configfile)
+		#opendev = bossao.bossao_start(self.lib, self.configfile)
+		opendev = 0;
 		if opendev is not 0:
 			log.debug("audio", "Audio device not opened.  Closing...")
 			self.session['shutdown'] = 1
@@ -152,7 +154,7 @@ class Player(threading.Thread):
 		self.songdetails = self.songqueue.getCurrentSong()		
 		if self.songdetails is not None:
 			log.debug("audio", "Calling bossao_play with filename %s", self.songdetails['filename'])
-			bossao.bossao_play(self.lib, self.songdetails['filename'])
+			bossao.bossao_play(self.songdetails['filename'])
 			log.debug("audio", "bossao_play returned")
 			self.playedflag = 1
 			self.songid = self.songdetails["songid"]
@@ -161,14 +163,15 @@ class Player(threading.Thread):
 			self.sleeplength = .1
 
 	def handleStopCommand(self):
-		bossao.bossao_shutdown(self.lib)
+		bossao.bossao_stop ()
+		#bossao.bossao_shutdown(self.lib)
 		self.state = "STOPPED"
 		self.sleeplength = 1
 
 	def handlePlayCommand(self):
 		if self.state != "STOPPED":
 			self.state = "PLAYING"
-			bossao.bossao_unpause(self.lib)
+			bossao.bossao_unpause()
 		else:
 			self.startPlaying()
 
@@ -176,7 +179,7 @@ class Player(threading.Thread):
 		if self.state != "STOPPED":
 			# bossao_pause toggles the pause state and returns the new state
 			# 1 = paused, 0 = playing
-			pauseresult = bossao.bossao_pause(self.lib)
+			pauseresult = bossao.bossao_pause()
 			if pauseresult == 1:
 				self.state = "PAUSED"
 				self.sleeplength = 1
@@ -201,8 +204,8 @@ class Player(threading.Thread):
 		self.aoinitialized = 0
 		session = Session()
 		self.configfile = session['cfg']
-		self.lib = bossao.bossao_new()
-		self.mixer = bossao.bossao_new_mixer()
+		self.lib = bossao.bossao_new(self.configfile, None)
+		#self.mixer = bossao.bossao_new_mixer()
 		self.playedflag = 0
 
 		if self.dbh.getSongCacheSize() == 0:
@@ -212,7 +215,7 @@ class Player(threading.Thread):
 			while self.dbh.getSongCacheSize() == 0 and session.hasKey('shutdown') == 0:
 				time.sleep(.5)
 
-		bossao.bossao_open_mixer(self.mixer, self.configfile.get("mixerdevice"), self.configfile.get("mixertype"))
+		#bossao.bossao_open_mixer(self.mixer, self.configfile.get("mixerdevice"), self.configfile.get("mixertype"))
 		self.initializeao()
 
 		if self.shutdown == 0:
@@ -255,8 +258,10 @@ class Player(threading.Thread):
 
 			time.sleep(1)
 			log.debug("audio", "Calling shutdown")
-			bossao.bossao_shutdown(self.lib)
-		bossao.bossao_close_mixer(self.mixer)
+			#bossao.bossao_shutdown(self.lib)
+			bossao.bossao_stop ()
+			bossao.bossao_free ()
+		#bossao.bossao_close_mixer(self.mixer)
 		log.debug("audio", "Closing lib")
 
 # vim:ts=8 sw=8 noet
