@@ -181,5 +181,5 @@ AM_CONDITIONAL(SHOUT_OPT, test x$enable_shout = xyes)
 AM_CONDITIONAL(OSS_MIXER_OPT, test x$enable_oss_mixer = xyes)
 AM_CONDITIONAL(ALSA_MIXER_OPT, test x$enable_alsa_mixer = xyes)
 
-AC_OUTPUT(Makefile boss3/Makefile boss3/bossao/Makefile boss3/metadata/Makefile)
+AC_OUTPUT(Makefile boss3/Makefile boss3/bossao/Makefile boss3/bossao2/Makefile boss3/metadata/Makefile)
 
