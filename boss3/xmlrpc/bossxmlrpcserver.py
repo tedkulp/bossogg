@@ -32,7 +32,8 @@ class SimpleXMLRPCRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 			response = self.server._marshaled_dispatch(data, getattr(self, '_dispatch', None))
 		except: # This should only happen if the module is buggy
 			# internal error, report as HTTP server error
-			traceback.print_exc()
+			log.exception("Got exception calling xmlrpc marsheller")
+			log.error("BAD XML CODE:\n%s", data)
 			self.send_response(500)
 			self.end_headers()
 		else:

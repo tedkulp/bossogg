@@ -686,9 +686,7 @@ class Database:
 
 	def importCancel(self):
 		log.debug("funcs", "Database.importCancel()")
-		SQL = "rollback transaction"
-		log.debug("sqlquery", "%s", SQL)
-		self.import_cursor.execute(SQL)
+
 
 	def importUpload(self, filename, songdata):
 		log.debug("funcs", "Database.importUpload()")

@@ -299,54 +299,52 @@ def process_changes(new_files, mod_files, del_files):
 	additions = []
 	
 
+	# New/Modified Files
+	if new_files or mod_files:
+		total = len(new_files+mod_files)
+		display("Adding/Updating files: %d files" % total)
+		cnt = 0
+		errors = []
+		log.debug("import", "Starting metadata loop %d", time.time())
+		for file in new_files+mod_files:
+			cnt += 1
+			progress_meter(cnt, total)
+			time.sleep(0.02)
+			metadata = rpc.db("getmetadata", file)
+			for key in metadata.keys():
+				metadata[key] = UTFstring.decode(metadata[key])
+			sinfo = file_info(file)
+			metadata.update(sinfo)
+			metadata["filename"] = file
+			additions.append(metadata)
+
+	log.debug("import", "Starting song import %d", time.time())
+
+	if not config["noop"]:
+		rpc.db("importstart")
+
 	try:
-		# New/Modified Files
-		if new_files or mod_files:
-			total = len(new_files+mod_files)
-			display("Adding/Updating files: %d files" % total)
-			cnt = 0
-			errors = []
-			log.debug("import", "Starting metadata loop %d", time.time())
-			for file in new_files+mod_files:
-				cnt += 1
-				progress_meter(cnt, total)
-				time.sleep(0.02)
-				metadata = rpc.db("getmetadata", file)
-				for key in metadata.keys():
-					metadata[key] = UTFstring.decode(metadata[key])
-				sinfo = file_info(file)
-				metadata.update(sinfo)
-				metadata["filename"] = file
-				additions.append(metadata)
-
-		log.debug("import", "Starting song import %d", time.time())
-
-		if not config["noop"]:
-			rpc.db("importstart")
-
 		while len(additions) > 0:
 			songs = additions[:100]
 			additions = additions[100:]
 			rpc.db("importnewsongs", songs)
-			
+
 		log.debug("import", "Import complete %d", time.time())
-		
-					
-			
-		if del_files:
-			display("Deleting files: %d files removed from database" % len(del_files))
-			if not config["noop"]:
-				rpc.db("importdelete", del_files)
-
-		if not config["noop"]:
-			rpc.db("importend")
-
 	except:
 		log.exception("Got exception during processing of data")
 		log.debug("import", "Aborting import. Canceling")
 		if not config["noop"]:
 			rpc.db("importcancel")
 		return
+
+	if del_files:
+		display("Deleting files: %d files removed from database" % len(del_files))
+		if not config["noop"]:
+			rpc.db("importdelete", del_files)
+
+	if not config["noop"]:
+		rpc.db("importend")
+
 
 
 def print_pretty_options():
