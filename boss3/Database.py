@@ -28,7 +28,6 @@ import string
 import types
 import thread
 import threading
-import mad
 from boss3.metadata import id3
 from boss3.metadata.id3 import getTag
 try:

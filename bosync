@@ -326,6 +326,9 @@ def process_changes(new_files, mod_files, del_files):
 				rpc.db("importdelete", del_files)
 	except:
 		log.exception("Got exception during processing of data")
+		log.debug("import", "Aborting import. Canceling")
+		rpc.db("importcancel")
+		return
 
 	if not config["noop"]:
 		rpc.db("importend")
