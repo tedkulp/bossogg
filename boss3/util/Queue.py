@@ -42,6 +42,7 @@ class CustomQueue:
 	def clear(self):
 		self.items=[]
 		self.currentindex=0
+		self.manager.usingendofqueue = 1
 	def shuffle(self):
 		random.shuffle(self.items)
 		print self.items
