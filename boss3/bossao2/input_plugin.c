@@ -118,6 +118,7 @@ inline gchar *input_play_chunk (gint *size, gint64 *sample_num, gchar *eof)
       return ret;
    } else {
       *eof = 0;
+      *sample_num = 0;
       LOG ("current song is NULL");
       return NULL;
    }

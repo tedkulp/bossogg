@@ -64,7 +64,7 @@ static gpointer producer_thread (gpointer p)
    gint size;
    guchar *chunk;
    chunk_s *cur_chunk;
-   gint64 sample_num;
+   gint64 sample_num = 0;
    gint64 last_sample_num = -1;
    gchar eof = 0;
    gchar eof_once = 0;
@@ -86,23 +86,29 @@ static gpointer producer_thread (gpointer p)
       cur_chunk->sample_num = sample_num;
 
       if (eof) {
-	 if (last_sample_num == sample_num) {
-	    if (eof_once != 2) {
+	 LOG ("got eof");
+	 if (last_sample_num == sample_num && last_sample_num > 0) {
+	    if (eof_once != 1) {
 	       eof = 1;
-	       eof_once++;
+	       eof_once = 1;
 	    } else
 	       eof = 0;
 	 }
 	 if (filename != last_filename) {
 	    last_filename = filename;
-	    eof_once = 0;
+	    //eof_once = 0;
 	 }
       } else {
-	 if (last_sample_num == sample_num)
+	 if (last_sample_num == sample_num && last_sample_num > 0) {
+	    LOG ("sample EOF: %lld %lld", last_sample_num, sample_num);
 	    eof = 1;
+	 }
       }
-      if (eof_once)
-	 g_usleep (40000);
+      if (eof_once) {
+	 LOG ("sleeping...");
+	 g_usleep (100000);
+	 eof_once = 0;
+      }
       cur_chunk->eof = eof;
       
       if (quit) {
@@ -122,13 +128,20 @@ static gpointer producer_thread (gpointer p)
       }
       //LOG ("producing");
       thbuf_produce (thbuf, cur_chunk, producer_pos);
-      if (eof)
-	 g_usleep (40000);
+      if (eof) {
+	 if (!eof_once) {
+	    g_usleep (40000);
+	    eof = 0;
+	    eof_once = 1;
+	 }
+      }
       //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
       producer_pos %= THBUF_SIZE;
 
       last_sample_num = sample_num;
+      if (last_sample_num == 0)
+	 last_sample_num = -1;
       
       if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
