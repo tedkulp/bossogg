@@ -54,7 +54,13 @@ static gpointer get_symbol (GModule *lib, char *name)
 /* attempt to open the output plugin */
 output_plugin_s *output_plugin_open (gchar *filename)
 {
-   GModule *lib = g_module_open (filename, G_MODULE_BIND_MASK);
+   gint module_bind = -1;
+   if (GLIB_MINOR_VERSION < 4) {
+      printf ("glib < 2.4 detected, using lazy dynamic loading (may be slow)\n", GLIB_MINOR_VERSION);
+      module_bind = G_MODULE_BIND_LAZY;
+   } else
+      module_bind = G_MODULE_BIND_LOCAL;
+   GModule *lib = g_module_open (filename, module_bind);
    if (lib == NULL) {
       LOG ("Could not dlopen '%s': %s", filename, g_module_error ());
       return NULL;
