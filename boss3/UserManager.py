@@ -17,8 +17,11 @@
 
 from util.Session import *
 from util import Logger
+from util import bosslog
 import md5
 import time
+
+log = bosslog.getLogger()
 
 class UserManager:
 
@@ -33,7 +36,7 @@ class UserManager:
 
 	def _cleanup(self):
 		for someuser in self.users.keys():
-			if self.users[someuser].lastdate < (time.time() - (60 * 30)):
+			if self.users[someuser].lastdate < (time.time() - (60 * 30)) and self.users[someuser].type == "stateless":
 				del self.users[someuser]
 
 	def listUsers(self):
@@ -48,21 +51,21 @@ class UserManager:
 
 	def authUser(self, username, password):
 		self._cleanup()
-		Logger.log("authing user: %s" % username)
+		log.debug("auth","authing user: %s" % username)
 		result = self.dbh.authUser(username, password)
 		if (result != None):
-			Logger.log("Found userid: %s" % result['userid'])
+			log.debug("auth","Found userid: %s" % result['userid'])
 			newuser = User(result['userid'])
-			Logger.log("User Created")
+			log.debug("auth","User Created")
 			newuser.authlevel = result['authlevel']
-			Logger.log("Set Auth Level: %s" % newuser.authlevel)
+			log.debug("auth","Set Auth Level: %s" % newuser.authlevel)
 			newuser.username = username
-			Logger.log("Set Username: %s" % newuser.username)
+			log.debug("auth","Set Username: %s" % newuser.username)
 			self.users[newuser.sessionid] = newuser
-			Logger.log("User added to list")
+			log.debug("auth","User added to list")
 			return newuser.sessionid
 		else:
-			Logger.log("User not found")
+			log.debug("auth","User not found")
 			return None
 
 	def touchSession(self, sessionid):
@@ -80,6 +83,13 @@ class UserManager:
 			return 1
 		else:
 			return 0
+
+	def getSessionIdFromFileno(self, fileno):
+		self._cleanup()
+		for i in self.users.keys():
+			if self.users[i].fileno == fileno:
+				return i
+		return None
 
 	def getUserIdFromSession(self, sessionid):
 		self._cleanup()
@@ -102,6 +112,8 @@ class User:
 	startdate = None
 	lastdate = None
 	username = ""
+	type = "stateless"
+	fileno = -1
 	
 	def __init__(self, uid):
 		m = md5.new()

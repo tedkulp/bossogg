@@ -43,8 +43,13 @@ class BossRpcServer(threading.Thread):
 
 	lengths = {}
 	data = {}
+	sessions = {}
 
 	shutdown = False
+
+	def encodeXmlRpc(obj,methodname=None,methodresponse=False):
+		xml = string.strip(xmlrpclib.dumps(obj, methodname=methodname, methodresponse=methodresponsee))
+		xml = zlib.compress(xml)
 
 	def __init__(self):
 		threading.Thread.__init__(self)
@@ -64,6 +69,7 @@ class BossRpcServer(threading.Thread):
 
 	def run(self):
 		#log = bosslog.getLogger()
+		session = Session()
 		while self.shutdown == False:
 			readable, writable, errorable = select.select(self.readable_in,self.writable_in,self.errorable_in,5.0)
 			for i in readable:
@@ -76,6 +82,14 @@ class BossRpcServer(threading.Thread):
 					recvbuf = i.recv(self.buflength)
 					if len(recvbuf) == 0:
 						log.debug("bossrpc","Removing connection")
+						if i.fileno() in self.sessions.keys():
+							if (session.hasKey('cmdint')):
+								cmdint = session['cmdint']
+								cmdint.auth.logout(self.sessions[i.fileno()])
+							del self.sessions[i.fileno()]
+							log.debug("bossrpc","Removed session")
+						else:
+							log.debug("bossrpc","No session found to remove")
 						i.close()
 						self.readable_in.remove(i)
 						self.writable_in.remove(i)
@@ -86,7 +100,7 @@ class BossRpcServer(threading.Thread):
 								self.data[i.fileno()] += recvbuf
 								#log.debug("bossrpc","more data")
 							else:
-								(msglength,msg) = string.split(recvbuf, ':', 1)
+								(msglength,flags,msg) = string.split(recvbuf, ':', 2)
 								self.lengths[i.fileno()] = int(msglength)
 								self.data[i.fileno()] = msg
 								#log.debug("bossrpc","start of data")
@@ -96,14 +110,28 @@ class BossRpcServer(threading.Thread):
 							xml = string.strip(zlib.decompress(xml))
 							response = xmlrpclib.loads(xml)
 							log.debug("bossrpc","Received xmlrpc message: %s",response)
-							if response[1] in dir(self.interface) and callable(getattr(self.interface, response[1])):
+							if response[1] == "auth" and len(response) == 3 and "login" in response[0]:
+								log.debug("bossrpc","Received auth message: %s-%s",str(response[1]),str(response[0]))
+								if (session.hasKey('cmdint')):
+									cmdint = session['cmdint']
+									sessionid = cmdint.auth.login(response[0][1],response[0][2])
+									newxml = ""
+									if sessionid != None:
+										log.debug("bossrpc","Received sessionid: %s",sessionid)
+										self.sessions[i.fileno()] = sessionid
+										newxml = encodeXmlRpc(sessionid,methodreponse=True)
+									else:
+										log.deug("bossrpc","Invalid login")
+										newxml = encodeXmlRpc("Permission Denied",methodreponse=True)
+									i.sendall("%i:z:%s" % (len(newxml),newxml))
+							elif response[1] in dir(self.interface) and callable(getattr(self.interface, response[1])):
 								ans = (getattr(self.interface,response[1])(*response[0]),)
 								#print ans
 								xml = string.strip(xmlrpclib.dumps(ans, methodresponse=True))
 								#log.debug("bossrpc","Sending xmlrpc message: %s",str(ans))
 								xml = zlib.compress(xml)
 								#print xml
-								i.sendall("%i:%s" % (len(xml),xml))
+								i.sendall("%i:z:%s" % (len(xml),xml))
 							del self.lengths[i.fileno()]
 							del self.data[i.fileno()]
 		readable, writable, errorable = select.select(self.readable_in,self.writable_in,self.errorable_in,0)

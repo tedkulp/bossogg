@@ -41,13 +41,13 @@ class ServerProxy:
 			xml = string.strip(xmlrpclib.dumps(params,methodname=fncname))
 			xml = zlib.compress(xml)
 			self.lock.acquire()
-			self.s.send("%i:%s" % (len(xml),xml))
+			self.s.send("%i:z:%s" % (len(xml),xml))
 			start = 1
 			maxlen = 1
 			result = ''
 			while len(result) < maxlen or start == 1:
 				if start == 1:
-					(maxlen,result) = string.split(self.s.recv(1024),':',1)
+					(maxlen,flags,result) = string.split(self.s.recv(1024),':',2)
 					maxlen = int(maxlen)
 					start = 0
 				else:
