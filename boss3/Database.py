@@ -353,7 +353,8 @@ class Database:
 				log.debug("sqlresult", "Row: %s", row)
 				result.append({"artistid":row['ar.artistid'],"artistname":row['ar.artistname'],"albumid":row['a.albumid'],"albumname":row['a.albumname'],"albumyear":row['a.year'],"metaartist":0})
 		else:
-			SQL = "SELECT ar.artistid, ar.artistname, a.albumid, a.albumname, a.year FROM albums a INNER JOIN artists ar ON ar.artistid = a.artistid ORDER BY ar.artistname, a.year, lower(a.albumname) ASC"
+			#SQL = "SELECT ar.artistid, ar.artistname, a.albumid, a.albumname, a.year FROM albums a INNER JOIN artists ar ON ar.artistid = a.artistid ORDER BY ar.artistname, a.year, lower(a.albumname) ASC"
+			SQL = "SELECT ar.artistid, ar.artistname, a.albumid, a.albumname, a.year FROM albums a INNER JOIN artists ar ON ar.artistid = a.artistid ORDER BY lower(a.albumname), ar.artistname ASC"
 			cursor.execute(SQL)
 			for row in cursor.fetchall():
 				log.debug("sqlresult", "Row: %s", row)
@@ -376,7 +377,7 @@ class Database:
 		SQL = "SELECT genreid, genrename FROM genres order by genreid"
 		cursor.execute(SQL)
 		for row in cursor.fetchall():
-			log.debug("sqlresult", row)
+			log.debug("sqlresult", "Row: %s", row)
 			result.append({"genreid":row['genreid'],"genrename":row['genrename']})
 		return result
 
