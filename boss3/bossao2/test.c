@@ -36,7 +36,11 @@ static gpointer producer (gpointer p)
    while (1) {
       int size;
       gchar *chunk = input_play_chunk (NULL, &size);
-      LOG ("producing");
+      if (chunk == NULL) {
+	 LOG ("got a null chunk, exiting");
+	 exit (0);
+      }
+      //LOG ("producing");
       thbuf_produce (thbuf, chunk, size, pos);
       //LOG ("done producing");
       /* uncomment next line to have the producer play audio (single-threaded) */
@@ -68,6 +72,7 @@ static gpointer consumer (gpointer p)
       //LOG ("done consuming");
       chunk = (gchar *)data;
       /* comment this next line if you want the producer to play audio */
+      //LOG ("out size is %d %d", size, BUF_SIZE);
       output_plugin_write_chunk_all (NULL, chunk, size);
       g_free (chunk);
       pos++;
@@ -107,7 +112,7 @@ int main (int argc, char *argv[])
 
    output_plugin_open_all (NULL);
    input_open (song, argv[1]);
-   LOG ("test.ogg has %f total time", input_time_total (song));
+   LOG ("%s has %f total time", argv[1], input_time_total (song));
    gint size;
    
    thbuf = thbuf_new (THBUF_SIZE);
@@ -125,6 +130,8 @@ int main (int argc, char *argv[])
 
    while (1)
       sleep (1);
+
+   LOG ("restarting?");
    
    sleep (2);
    thbuf_clear (thbuf);

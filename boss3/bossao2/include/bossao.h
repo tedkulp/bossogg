@@ -33,7 +33,7 @@
 #define OSS_MIXER 1
 #define ALSA_MIXER 2
 
-#define BUF_SIZE 4000
+#define BUF_SIZE 4096
 #define BUF_CHUNKS 256
 
 #define RATE 44100
