@@ -38,11 +38,12 @@ typedef struct {
 
 thbuf_sem_t *semaphore_new (int count);
 void semaphore_free (thbuf_sem_t *semaphore);
-int semaphore_p (thbuf_sem_t *semaphore);
-int semaphore_v (thbuf_sem_t *sempahore);
+gint semaphore_p (thbuf_sem_t *semaphore);
+gint semaphore_v (thbuf_sem_t *sempahore);
 
-int thbuf_produce (thbuf_t *buf, void *p);
-void *thbuf_consume (thbuf_t *buf);
+gint thbuf_produce (thbuf_t *buf, void *p);
+void *thbuf_consume (thbuf_t *buf, gint *count);
+gint thbuf_current_size (thbuf_t *buf);
 void thbuf_clear (thbuf_t *buf);
 
 thbuf_t *thbuf_new (size_t size);

@@ -39,7 +39,7 @@ typedef struct chunk_t {
 static thbuf_sem_t *eof_sem;
 
 static thbuf_t *thbuf;
-static GMutex *pause_mutex, *produce_mutex;
+static GMutex *pause_mutex;// *produce_mutex;
 static GThread *producer, *consumer;
 static gint paused = 1;
 static gint stopped = 1;
@@ -67,8 +67,6 @@ static gpointer producer_thread (gpointer p)
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
    gchar eof = -1;
-   gchar *filename;
-   gchar *last_filename = NULL;
 
    g_usleep (10000);
 
@@ -79,12 +77,9 @@ static gpointer producer_thread (gpointer p)
 	 eof = 0;
       }
       
-      g_mutex_lock (produce_mutex);
-      filename = input_filename ();
-      if (last_filename == NULL)
-	 last_filename = input_filename ();
+      //g_mutex_lock (produce_mutex);
       chunk = input_play_chunk (&size, &sample_num, &eof);
-      g_mutex_unlock (produce_mutex);
+      //g_mutex_unlock (produce_mutex);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
       cur_chunk->chunk = chunk;
       cur_chunk->size = size;
@@ -92,8 +87,13 @@ static gpointer producer_thread (gpointer p)
 
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk: %lld %lld", last_sample_num, sample_num);
-	 if (eof)
+	 if (eof) {
 	    LOG ("was eof...");
+	 } else {
+	    g_free (cur_chunk);
+	    g_usleep (10000);
+	    continue;
+	 }
       }
       cur_chunk->eof = eof;
       if (quit) {
@@ -101,17 +101,6 @@ static gpointer producer_thread (gpointer p)
 	 thbuf_produce (thbuf, cur_chunk);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
-      }
-      if (chunk == NULL) {
-	 LOG ("got a NULL chunk... eof %d", cur_chunk->eof);
-	 //g_free (cur_chunk);
-	 g_mutex_lock (produce_mutex);
-	 thbuf_produce (thbuf, cur_chunk);
-	 g_mutex_unlock (produce_mutex);
-	 if (!cur_chunk->eof) {
-	    g_usleep (10000);
-	    continue;
-	 }
       }
       //LOG ("producing");
       //g_mutex_lock (produce_mutex);
@@ -125,7 +114,6 @@ static gpointer producer_thread (gpointer p)
 
       last_sample_num = sample_num;
       
-      //g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
 	 LOG ("stopping thread");
@@ -140,13 +128,14 @@ static gpointer consumer_thread (gpointer p)
 {
    chunk_s *chunk = (chunk_s *)0x1;
    gint64 last_sample_num = -1;
+   gint count;
 
    g_usleep (100000);
    
    while (1) {
       //LOG ("consuming");
       //g_mutex_lock (pause_mutex);
-      chunk = (chunk_s *)thbuf_consume (thbuf);
+      chunk = (chunk_s *)thbuf_consume (thbuf, &count);
       //g_mutex_unlock (pause_mutex);
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
@@ -165,30 +154,31 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (10000);
 	 if (!chunk->eof) {
 	    LOG ("wasn't eof");
+	    g_free (chunk);
 	    continue;
-	 } else {
-	    LOG ("was eof");
-	 }
+	 } 
       }
       if (chunk->eof) {
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
 	 g_usleep (10000);
+	 g_free (chunk);
 	 continue;
       }
 
       //LOG ("about to play %p of %d size", chunk->chunk, chunk->size);
-      g_mutex_lock (pause_mutex);
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
+      g_mutex_lock (pause_mutex);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
       g_mutex_unlock (pause_mutex);
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
-      //g_usleep (0);
+      // give up the scheduler
+      g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
-	 thbuf_consume (thbuf);
+	 thbuf_consume (thbuf, &count);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
@@ -247,7 +237,7 @@ void bossao_stop (void)
 {
    LOG ("in stop");
    if (stopped == 0) {
-      g_mutex_lock (produce_mutex);
+      //g_mutex_lock (produce_mutex);
       LOG ("locked produce mutex");
       stopped = 1;
    } else {
@@ -279,7 +269,7 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
    output_plugin_open_all (cfgparser);
 
    pause_mutex = g_mutex_new ();
-   produce_mutex = g_mutex_new ();
+   //produce_mutex = g_mutex_new ();
    thbuf = thbuf_new (THBUF_SIZE);
 
    if (filename != NULL)
@@ -325,7 +315,7 @@ void bossao_free (void)
    g_mutex_free (pause_mutex);
    LOG ("pause mutex freed");
    //g_mutex_lock (produce_mutex);
-   g_mutex_free (produce_mutex);
+   //g_mutex_free (produce_mutex);
    LOG ("produce mutex freed");
    thbuf_free (thbuf);
    LOG ("thbuf freed");
@@ -338,7 +328,7 @@ gint bossao_play (gchar *filename)
    input_open (plugin, filename);
    stopped = 0;
    semaphore_v (eof_sem);
-   g_mutex_unlock (produce_mutex);
+   //g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
    g_usleep (100000);
    paused = 0;

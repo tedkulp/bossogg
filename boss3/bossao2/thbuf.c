@@ -34,9 +34,6 @@
 #include "thbuf.h"
 #include "common.h"
 
-//extern gint prod_pos;
-//extern gint cons_pos;
-
 /* allocate a new semaphore
    mutex is the pre-allocated mutex to associate with the semaphore */
 thbuf_sem_t *semaphore_new (gint count)
@@ -76,7 +73,7 @@ gint semaphore_p (thbuf_sem_t *sem)
 
 /* performs a v operation on the semaphore
    returns the count of the semaphore */
-int semaphore_v (thbuf_sem_t *sem)
+gint semaphore_v (thbuf_sem_t *sem)
 {
    // increment the count, signal the others 
    g_mutex_lock (sem->mutex);
@@ -90,7 +87,7 @@ int semaphore_v (thbuf_sem_t *sem)
 /* production function
    adds p the the thbuf
    adds size to the size array */
-int thbuf_produce (thbuf_t *buf, void *p)
+gint thbuf_produce (thbuf_t *buf, void *p)
 {
    // perform a p operation on empty, makes less empty 
    semaphore_p (buf->empty);
@@ -105,13 +102,13 @@ int thbuf_produce (thbuf_t *buf, void *p)
    // perform a v operation on full, makes more full 
    semaphore_v (buf->full);  
    
-   return 0;
+   return buf->full->count;
 }
 
 /* consumption function
    returns p that was added
    size is returned to be the size associated with p */
-void *thbuf_consume (thbuf_t *buf)
+void *thbuf_consume (thbuf_t *buf, gint *count)
 {
    // perform a p operation on full, makes less full 
    semaphore_p (buf->full);
@@ -120,6 +117,8 @@ void *thbuf_consume (thbuf_t *buf)
    g_mutex_lock (buf->mutex);
    void *ret = buf->buf[buf->consume_pos];
    buf->buf[buf->consume_pos] = NULL;
+   if (count != NULL)
+      *count = buf->full->count;
    buf->consume_pos = (buf->consume_pos + 1) % THBUF_SIZE;
    //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);
    g_mutex_unlock (buf->mutex);
@@ -130,22 +129,65 @@ void *thbuf_consume (thbuf_t *buf)
    return ret;
 }
 
+/* consumption function, non locking version
+   returns p that was added
+   size is returned to be the size associated with p */
+static void *thbuf_consume_no_lock (thbuf_t *buf, gint *count)
+{
+   // perform a p operation on full, makes less full 
+   semaphore_p (buf->full);
+
+   //critical section, remove the data from the thbuf 
+   void *ret = buf->buf[buf->consume_pos];
+   buf->buf[buf->consume_pos] = NULL;
+   if (count != NULL)
+      *count = buf->full->count;
+   buf->consume_pos = (buf->consume_pos + 1) % THBUF_SIZE;
+   //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);
+
+   // perform a v operation on empty, makes more empty
+   semaphore_v (buf->empty);
+
+   return ret;
+}
+
+/* get the current number of elements the thbuf is storing */
+gint thbuf_current_size (thbuf_t *buf)
+{
+   gint ret;
+   g_mutex_lock (buf->mutex);
+   ret = buf->full->count;
+   g_mutex_unlock (buf->mutex);
+   return ret;
+}
+
+/* get the current number of elements the thbuf is storing without locking */
+static gint thbuf_current_size_no_lock (thbuf_t *buf)
+{
+   return buf->full->count;
+}
+
 /* resets a thbuf (frees all data ps) */
 void thbuf_clear (thbuf_t *buf)
 {
    gint i;
+   gint count;
 
    g_mutex_lock (buf->mutex);
 
-   for (i = 0; i < buf->size; i++) {
-      if (buf->buf[i] != NULL)
-	 g_free (buf->buf[i]);
-      buf->buf[i] = NULL;
+   if (!(count = thbuf_current_size_no_lock (buf))) {
+      g_mutex_unlock (buf->mutex);
+      LOG ("buffer is already cleared!");
+      return;
    }
-   buf->empty->count = buf->size;
-   buf->full->count = 0;
-   buf->produce_pos = 0;
-   buf->consume_pos = 0;
+   
+   while (1) {
+      void *p = thbuf_consume_no_lock (buf, &count);
+      if (p != NULL)
+	 g_free (p);
+      if (!count)
+	 break;
+   }
 
    g_mutex_unlock (buf->mutex);
 }
