@@ -26,7 +26,7 @@
 #import "thbuf.h"
 
 thbuf_t *thbuf;
-GMutex *cons_pause_mutex;
+GMutex *cons_pause_mutex, *prod_pause_mutex;
 int prod_pos, cons_pos;
 
 #define THBUF_SIZE 256
@@ -37,6 +37,7 @@ static gpointer producer (gpointer p)
    LOG ("producer thread started");
 
    while (1) {
+      g_mutex_lock (prod_pause_mutex);
       int size;
       gchar *chunk = input_play_chunk (NULL, &size);
       //LOG ("producing");
@@ -60,6 +61,7 @@ static gpointer producer (gpointer p)
       }
       //if (cons_pos == prod_pos + 1)
 //	 g_usleep (10000);
+      g_mutex_unlock (prod_pause_mutex);
       g_thread_yield ();
    }
       
@@ -126,6 +128,7 @@ int main (int argc, char *argv[])
    bossao_thread_init ();
 
    cons_pause_mutex = g_mutex_new ();
+   prod_pause_mutex = g_mutex_new ();
    
    input_plugin_open ("input_mp3.la");
    input_plugin_open ("input_ogg.la");
@@ -166,7 +169,9 @@ int main (int argc, char *argv[])
    /* test stopping and loading a new file */
    sleep (secs_to_sleep);
    LOG ("clearing");
+   g_mutex_lock (prod_pause_mutex);
    g_mutex_lock (cons_pause_mutex);
+   LOG ("about the thbuf_clear");
    thbuf_clear (thbuf);
    prod_pos = 0;
    cons_pos = 0;
@@ -182,6 +187,7 @@ int main (int argc, char *argv[])
    input_plugin_set (plugin);
    input_open (song, argv[2]);
    g_usleep (100000);
+   g_mutex_unlock (prod_pause_mutex);
    g_mutex_unlock (cons_pause_mutex);
    sleep (secs_to_sleep);
 
@@ -198,6 +204,7 @@ int main (int argc, char *argv[])
    
    thbuf_free (thbuf);
    g_mutex_free (cons_pause_mutex);
+   g_mutex_free (prod_pause_mutex);
    
    return 0;
 }
