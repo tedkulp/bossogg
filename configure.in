@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(bosync)
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(bossogg, 0.13.4-rc5)
+AM_INIT_AUTOMAKE(bossogg, 0.13.4-rc6)
 
 AC_ARG_ENABLE(vorbis,AC_HELP_STRING([--disable-vorbis],[Remove ogg vorbis support]),,enable_vorbis=yes)
 AC_ARG_ENABLE(flac,AC_HELP_STRING([--disable-flac],[Remove flac support]),,enable_flac=yes)

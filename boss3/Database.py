@@ -580,17 +580,20 @@ class Database:
 		try:
 			for song in songs:
 				log.debug("import", "Importing song %s as %s", song["filename"], song)
-				genreid = -1
-				if 'genre' in song.keys():
-					genreid = self._getGenre(self.checkBinary(song['genre']))
-				artistid = self._getArtist(self.checkBinary(song['artistname']),False)
-				metaartistid = -1
-				if 'metaartistname' in song.keys():
-					metaartistid = self._getArtist(self.checkBinary(song['metaartistname']),True)
-				albumid = self._getAlbum(self.checkBinary(song['albumname']), artistid, song['year'])
-				songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid=albumid,year=song['year'],metaartistid=metaartistid, bitrate=song["bitrate"], songlength=song["songlength"])
+				if "bitrate" in song.keys():
+					genreid = -1
+					if 'genre' in song.keys():
+						genreid = self._getGenre(self.checkBinary(song['genre']))
+					artistid = self._getArtist(self.checkBinary(song['artistname']),False)
+					metaartistid = -1
+					if 'metaartistname' in song.keys():
+						metaartistid = self._getArtist(self.checkBinary(song['metaartistname']),True)
+					albumid = self._getAlbum(self.checkBinary(song['albumname']), artistid, song['year'])
+					songid = self._getNSong(self.checkBinary(song['songname']),artistid,self.checkBinary(song['filename']),song['tracknum'],albumid=albumid,year=song['year'],metaartistid=metaartistid, bitrate=song["bitrate"], songlength=song["songlength"])
+				else:
+					log.debug("import", "Could not get bitrate of song %s.  Assuming bad file.", song["filename"])
 		except:
-			cusor.rollback()
+			cursor.rollback()
 			raise
 
 		cursor.commit()

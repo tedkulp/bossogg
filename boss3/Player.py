@@ -153,6 +153,7 @@ class Player(threading.Thread):
 		if self.songdetails is not None:
 			log.debug("audio", "Calling bossao_play with filename %s", self.songdetails['filename'])
 			bossao.bossao_play(self.lib, self.songdetails['filename'])
+			log.debug("audio", "bossao_play returned")
 			self.playedflag = 1
 			self.songid = self.songdetails["songid"]
 			self.state = "PLAYING"

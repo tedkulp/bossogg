@@ -173,13 +173,20 @@ class DB:
 					return 1
 				elif (cmd == "importnewsongs"):
 					if len(args) > 0:
-						return cmdint.db.importnewsongs(args[0])
+						#import pprint
+						#pprint.pprint(args[0])
+						tmp = args[0]
+						for row in args[0]:
+							for key in row.keys():
+								row[key] = UTFstring.decode(row[key])
+						#pprint.pprint(tmp)
+						return cmdint.db.importnewsongs(tmp)
 				elif (cmd == "importsong"):
 					if len(args) > 0:
 						if type(args[0]) is DictType:
 							tmp = args[0]
 							for i in tmp.keys():
-								tmp[i] = UTFstring.decode(tmp[i])
+								tmp[i] = UTFstring.encode(tmp[i])
 							#print "tmp:%s" % str(tmp)
 							return cmdint.db.importsongs(tmp)
 						else:
@@ -203,18 +210,17 @@ class DB:
 						#It's a bad command
 						pass
 				elif (cmd == "importcache"):
+					log.debug("import", "Import cache called")
 					cache = cmdint.db.importcache()
 					for i in cache:
-						tmp= UTFstring.encode(i['filename'])
-						i['filename'] = tmp
+						i['filename'] = UTFstring.encode(i['filename'])
 					return cache
 				elif cmd == "upload":
+					log.debug("import", "Upload called")
 					if len(args) > 0:
 						thehash = cmdint.db.importupload(UTFstring.decode(args[0]))
-						for i in thehash:
-							if isinstance(thehash[i], UnicodeType) or isinstance(thehash[i], StringType):
-								tmp = UTFstring.encode(thehash[i])
-								thehash[i] = tmp
+						for i in thehash.keys():
+							thehash[i] = UTFstring.encode(thehash[i])
 						return thehash
 					else:
 						#TODO: Make an error fault
@@ -223,10 +229,12 @@ class DB:
 					log.debug("import", "Got to getmetadata check")
 					if len(args) > 0:
 						thehash = cmdint.db.getmetadata(UTFstring.decode(args[0]))
-						for i in thehash:
-							if isinstance(thehash[i], UnicodeType) or isinstance(thehash[i], StringType):
-								tmp = UTFstring.encode(thehash[i])
-								thehash[i] = tmp
+						for i in thehash.keys():
+							if isinstance(i, ListType):
+								for j in i.keys():
+									i[j] = UTFstring.encode(i[j])
+							else:
+								thehash[i] = UTFstring.encode(thehash[i])
 						return thehash
 					else:
 						#TODO: Make an error fault

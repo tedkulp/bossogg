@@ -106,7 +106,7 @@ class Completer:
 	def __init__(self):
 		log.debug("interact", "Setting up readline completer")
 		artists = rpc.list("artists")
-		self.cache = dict([(str(artist["artistname"]), [artist["artistid"], []]) for artist in artists])
+		self.cache = dict([(UTFstring.decode(artist["artistname"]), [artist["artistid"], []]) for artist in artists])
 
 
 	def get_artist(self, artist):
@@ -136,7 +136,7 @@ class Completer:
 
 		if self.cache[artist][0] != -1 and not self.cache[artist][1]:
 			albums = rpc.list("albums", self.cache[artist][0])
-			self.cache[artist][1] = [str(album["albumname"]) for album in albums]
+			self.cache[artist][1] = [UTFstring.decode(album["albumname"]) for album in albums]
 
 		matches = []
 		for album in self.cache[artist][1]:
@@ -310,7 +310,9 @@ def process_changes(new_files, mod_files, del_files):
 			cnt += 1
 			progress_meter(cnt, total)
 			time.sleep(0.02)
-			metadata = rpc.db("getmetadata", file)
+			metadata = rpc.db("getmetadata", UTFstring.encode(file))
+			#import pprint
+			#pprint.pprint(metadata)
 			for key in metadata.keys():
 				metadata[key] = UTFstring.decode(metadata[key])
 			sinfo = file_info(file)
@@ -327,7 +329,13 @@ def process_changes(new_files, mod_files, del_files):
 		while len(additions) > 0:
 			songs = additions[:100]
 			additions = additions[100:]
-			rpc.db("importnewsongs", songs)
+			tmp = []
+			for i in songs:
+				for key in i.keys():
+					i[key] = UTFstring.encode(i[key])
+				tmp.append(UTFstring.encode(i))
+					
+			rpc.db("importnewsongs", tmp)
 
 		log.debug("import", "Import complete %d", time.time())
 	except:

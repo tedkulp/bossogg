@@ -1,9 +1,7 @@
 # This file was created automatically by SWIG.
 # Don't modify this file, modify the SWIG interface instead.
 # This file is compatible with both classic and new-style classes.
-
 import _bossao
-
 def _swig_setattr(self,class_type,name,value):
     if (name == "this"):
         if isinstance(value, class_type):
@@ -27,8 +25,6 @@ try:
 except AttributeError:
     class _object : pass
     _newclass = 0
-del types
-
 
 
 bossao_new = _bossao.bossao_new
@@ -68,4 +64,5 @@ bossao_getvol = _bossao.bossao_getvol
 bossao_setvol = _bossao.bossao_setvol
 
 bossao_del_mixer = _bossao.bossao_del_mixer
+
 
