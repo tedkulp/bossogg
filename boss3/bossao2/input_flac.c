@@ -109,7 +109,7 @@ gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num, gchar *e
       LOG ("song is finished 2");
       //return NULL;
    }
-   return p_flac->buffer;
+   return (gchar *)p_flac->buffer;
 }
 
 static void error_callback (const FLAC__FileDecoder *decoder,
@@ -137,7 +137,7 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
    song_s *song = (song_s *)data;
    private_flac_s *p_flac = (private_flac_s *)song->private;
 
-   gint size = frame->header.blocksize * frame->header.channels;
+   //gint size = frame->header.blocksize * frame->header.channels;
    gint samples = frame->header.blocksize;
    if (samples) {
       p_flac->buffer_size = samples * frame->header.channels * sizeof (gshort);

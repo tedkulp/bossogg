@@ -47,6 +47,14 @@ thbuf_sem_t *semaphore_new (gint count)
    return sem;
 }
 
+void static_semaphore_new (thbuf_static_sem_t *sem, gint count,
+			   GStaticMutex *mutex)
+{
+   sem->mutex = mutex;
+   sem->cond = g_cond_new ();
+   sem->count = count;
+}
+
 /* free a semaphore
    the mutex associated with it is NOT freed */
 void semaphore_free (thbuf_sem_t *sem)
@@ -54,6 +62,11 @@ void semaphore_free (thbuf_sem_t *sem)
    g_cond_free (sem->cond);
 
    g_free (sem);
+}
+
+void static_semaphore_free (thbuf_static_sem_t *sem)
+{
+   g_cond_free (sem->cond);
 }
 
 /* performs a p operation on the semaphore
@@ -73,6 +86,21 @@ gint semaphore_p (thbuf_sem_t *sem)
    return count;
 }
 
+gint static_semaphore_p (thbuf_static_sem_t *sem)
+{
+   gint count;
+   
+   // wait on the count, decrement it 
+   g_static_mutex_lock (sem->mutex);
+   while (sem->count < 1) {
+      g_cond_wait (sem->cond, g_static_mutex_get_mutex (sem->mutex));
+   }
+   count = --sem->count;
+   g_static_mutex_unlock (sem->mutex);
+
+   return count;
+}
+
 /* performs a v operation on the semaphore
    returns the count of the semaphore */
 gint semaphore_v (thbuf_sem_t *sem)
@@ -84,6 +112,19 @@ gint semaphore_v (thbuf_sem_t *sem)
    count = ++sem->count;
    g_cond_broadcast (sem->cond);
    g_mutex_unlock (sem->mutex);
+
+   return count;
+}
+
+gint static_semaphore_v (thbuf_static_sem_t *sem)
+{
+   gint count;
+   
+   // increment the count, signal the others 
+   g_static_mutex_lock (sem->mutex);
+   count = ++sem->count;
+   g_cond_broadcast (sem->cond);
+   g_static_mutex_unlock (sem->mutex);
 
    return count;
 }
@@ -117,6 +158,32 @@ gint thbuf_produce (thbuf_t *buf, void *p)
    //return (gint)old;
 }
 
+gint thbuf_static_produce (thbuf_static_t *buf, void *p)
+{
+   gint ret;
+   
+   // perform a p operation on empty, makes less empty 
+   static_semaphore_p (buf->empty);
+
+   // critical section, add the data to the thbuf 
+   g_static_mutex_lock (buf->mutex);
+   if (buf->buf[buf->produce_pos]) {
+      LOG ("uhh... a position wasn't null: buf->producer_pos: %d", buf->produce_pos);
+   }
+   buf->buf[buf->produce_pos] = p;
+   //LOG ("produced to %d", buf->produce_pos);
+   buf->produce_pos = (buf->produce_pos + 1) % (THBUF_SIZE);
+   //LOG ("added %p size %d to %d", buf->buf[pos], buf->chunk_size[pos], pos);
+   ret = buf->full->count - 1;
+   g_static_mutex_unlock (buf->mutex);
+
+   // perform a v operation on full, makes more full 
+   static_semaphore_v (buf->full);  
+   
+   return ret;
+   //return (gint)old;
+}
+
 /* consumption function
    returns p that was added
    size is returned to be the size associated with p */
@@ -138,6 +205,28 @@ void *thbuf_consume (thbuf_t *buf, gint *count)
 
    // perform a v operation on empty, makes more empty
    semaphore_v (buf->empty);
+
+   return ret;
+}
+
+void *thbuf_static_consume (thbuf_static_t *buf, gint *count)
+{
+   // perform a p operation on full, makes less full 
+   static_semaphore_p (buf->full);
+
+   //critical section, remove the data from the thbuf 
+   g_static_mutex_lock (buf->mutex);
+   void *ret = buf->buf[buf->consume_pos];
+   buf->buf[buf->consume_pos] = NULL;
+   if (count != NULL)
+      *count = buf->full->count;
+   //LOG ("consumed at %d", buf->consume_pos);
+   buf->consume_pos = (buf->consume_pos + 1) % (THBUF_SIZE);
+   //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);
+   g_static_mutex_unlock (buf->mutex);
+
+   // perform a v operation on empty, makes more empty
+   static_semaphore_v (buf->empty);
 
    return ret;
 }
@@ -164,6 +253,25 @@ static void *thbuf_consume_no_lock (thbuf_t *buf, gint *count)
    return ret;
 }
 
+static void *thbuf_static_consume_no_lock (thbuf_static_t *buf, gint *count)
+{
+   // perform a p operation on full, makes less full 
+   static_semaphore_p (buf->full);
+
+   //critical section, remove the data from the thbuf 
+   void *ret = buf->buf[buf->consume_pos];
+   buf->buf[buf->consume_pos] = NULL;
+   if (count != NULL)
+      *count = buf->full->count;
+   buf->consume_pos = (buf->consume_pos + 1) % (THBUF_SIZE);
+   //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);
+
+   // perform a v operation on empty, makes more empty
+   static_semaphore_v (buf->empty);
+
+   return ret;
+}
+
 /* get the current number of elements the thbuf is storing */
 gint thbuf_current_size (thbuf_t *buf)
 {
@@ -174,8 +282,22 @@ gint thbuf_current_size (thbuf_t *buf)
    return ret;
 }
 
+gint thbuf_static_current_size (thbuf_static_t *buf)
+{
+   gint ret;
+   g_static_mutex_lock (buf->mutex);
+   ret = buf->full->count;
+   g_static_mutex_unlock (buf->mutex);
+   return ret;
+}
+
 /* get the current number of elements the thbuf is storing without locking */
 static gint thbuf_current_size_no_lock (thbuf_t *buf)
+{
+   return buf->full->count;
+}
+
+static gint thbuf_static_current_size_no_lock (thbuf_static_t *buf)
 {
    return buf->full->count;
 }
@@ -204,7 +326,35 @@ void thbuf_clear (thbuf_t *buf)
    g_mutex_unlock (buf->mutex);
 }
 
+void thbuf_static_clear (thbuf_static_t *buf)
+{
+   gint count;
+
+   g_static_mutex_lock (buf->mutex);
+
+   if (!(count = thbuf_static_current_size_no_lock (buf))) {
+      g_static_mutex_unlock (buf->mutex);
+      LOG ("buffer is already cleared!");
+      return;
+   }
+   
+   while (1) {
+      void *p = thbuf_static_consume_no_lock (buf, &count);
+      if (buf->free_cb)
+	 buf->free_cb (p);
+      if (!count)
+	 break;
+   }
+
+   g_static_mutex_unlock (buf->mutex);
+}
+
 void thbuf_set_free_callback (thbuf_t *thbuf, thbuf_free_callback_t cb)
+{
+   thbuf->free_cb = cb;
+}
+
+void thbuf_static_set_free_callback (thbuf_static_t *thbuf, thbuf_free_callback_t cb)
 {
    thbuf->free_cb = cb;
 }
@@ -237,6 +387,33 @@ thbuf_t *thbuf_new (size_t size)
    return buf;
 }
 
+void thbuf_static_new (thbuf_static_t *buf, size_t size, GStaticMutex *mutex,
+		       thbuf_static_sem_t *empty_sem, GStaticMutex *empty_sem_mutex,
+		       thbuf_static_sem_t *full_sem, GStaticMutex *full_sem_mutex)
+{
+   gint i;
+
+   buf->size = size;
+   buf->free_cb = NULL;
+   
+   // allocate size members of p's and the size array 
+   buf->buf = (void **)g_malloc (sizeof (void *) * (size));
+
+   // initialize all members to 0
+   for (i = 0; i < size; i++) {
+      buf->buf[i] = NULL;
+   }
+
+   // allocate the threading structures 
+   buf->mutex = mutex;
+   static_semaphore_new (empty_sem, size, empty_sem_mutex);
+   buf->empty = empty_sem;
+   static_semaphore_new (full_sem, 0, full_sem_mutex);
+   buf->full = full_sem;
+   buf->produce_pos = 0;
+   buf->consume_pos = 0;
+}
+
 /* free a thbuf */
 void thbuf_free (thbuf_t *buf)
 {
@@ -246,4 +423,13 @@ void thbuf_free (thbuf_t *buf)
    semaphore_free (buf->full);
    g_free (buf->buf);
    g_free (buf);
+}
+
+void thbuf_static_free (thbuf_static_t *buf)
+{
+   thbuf_static_clear (buf);
+   g_static_mutex_free (buf->mutex);
+   static_semaphore_free (buf->empty);
+   static_semaphore_free (buf->full);
+   g_free (buf->buf);
 }

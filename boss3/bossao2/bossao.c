@@ -29,11 +29,23 @@
 
 //static chunk_s chunks[THBUF_SIZE];
 
-static thbuf_sem_t *produce_eof_sem, *consume_eof_sem;
+//static thbuf_sem_t *produce_eof_sem, *consume_eof_sem;
+static GStaticMutex produce_eof_sem_mutex = G_STATIC_MUTEX_INIT;
+static GStaticMutex consume_eof_sem_mutex = G_STATIC_MUTEX_INIT;
+static thbuf_static_sem_t produce_eof_sem, consume_eof_sem;
 
-static thbuf_t *thbuf;
+//static thbuf_t *thbuf;
+static GStaticMutex thbuf_mutex = G_STATIC_MUTEX_INIT;
+static GStaticMutex thbuf_empty_sem_mutex = G_STATIC_MUTEX_INIT;
+static GStaticMutex thbuf_full_sem_mutex = G_STATIC_MUTEX_INIT;
+static thbuf_static_sem_t thbuf_empty_sem;
+static thbuf_static_sem_t thbuf_full_sem;
+static thbuf_static_t thbuf;
 //static GMutex *pause_mutex;//, *produce_mutex;
-static thbuf_sem_t *cons_pause_sem, *prod_pause_sem;
+//static thbuf_sem_t *cons_pause_sem, *prod_pause_sem;
+static GStaticMutex cons_pause_sem_mutex = G_STATIC_MUTEX_INIT;
+static GStaticMutex prod_pause_sem_mutex = G_STATIC_MUTEX_INIT;
+static thbuf_static_sem_t cons_pause_sem, prod_pause_sem;
 static GThread *producer, *consumer;
 static gint paused = 1;
 static gint stopped = 1;
@@ -74,7 +86,7 @@ static void buffer_free_callback (void *p)
 static gpointer producer_thread (gpointer p)
 {
    gint size;
-   guchar *chunk;
+   gchar *chunk;
    chunk_s *cur_chunk;
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
@@ -84,15 +96,18 @@ static gpointer producer_thread (gpointer p)
 
    if (eof == -1) {
       LOG ("waiting on eof sem");
-      semaphore_p (produce_eof_sem);
+      //semaphore_p (produce_eof_sem);
+      static_semaphore_p (&produce_eof_sem);
       eof = 0;
    }
       
    while (1) {
       //g_mutex_lock (produce_mutex);
-      semaphore_p (prod_pause_sem);
+      //semaphore_p (prod_pause_sem);
+      static_semaphore_p (&prod_pause_sem);
       chunk = input_play_chunk (&size, &sample_num, &eof);
-      semaphore_v (prod_pause_sem);
+      //semaphore_v (prod_pause_sem);
+      static_semaphore_v (&prod_pause_sem);
      //g_mutex_unlock (produce_mutex);
       cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
       cur_chunk->chunk = chunk;
@@ -123,14 +138,16 @@ static gpointer producer_thread (gpointer p)
       cur_chunk->eof = eof;
       //LOG ("producing");
       //g_mutex_lock (produce_mutex);
-      thbuf_produce (thbuf, cur_chunk);
+      //thbuf_produce (thbuf, cur_chunk);
+      thbuf_static_produce (&thbuf, cur_chunk);
       //g_mutex_unlock (produce_mutex);
 
       //buffer_free_callback (old_chunk);
       //g_usleep (0);
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
-	 semaphore_p (produce_eof_sem);
+	 //semaphore_p (produce_eof_sem);
+	 static_semaphore_p (&produce_eof_sem);
 	 eof = 0;
       }
 
@@ -156,18 +173,23 @@ static gpointer consumer_thread (gpointer p)
    
    g_usleep (100000);
 
-   semaphore_p (consume_eof_sem);
+   //semaphore_p (consume_eof_sem);
+   static_semaphore_p (&consume_eof_sem);
 
    LOG ("done waiting");
    
    while (1) {
       //LOG ("consuming");
       //g_mutex_lock (pause_mutex);
-      semaphore_p (cons_pause_sem);
-      size = thbuf_current_size (thbuf);
+      //semaphore_p (cons_pause_sem);
+      static_semaphore_p (&cons_pause_sem);
+      //size = thbuf_current_size (thbuf);
+      size = thbuf_static_current_size (&thbuf);
       //if (size > 10)
-      chunk = (chunk_s *)thbuf_consume (thbuf, &count);
-      semaphore_v (cons_pause_sem);
+      //chunk = (chunk_s *)thbuf_consume (thbuf, &count);
+      chunk = (chunk_s *)thbuf_static_consume (&thbuf, &count);
+      //semaphore_v (cons_pause_sem);
+      static_semaphore_v (&cons_pause_sem);
 
 	 //else {
 	 //LOG ("filling buffer...");
@@ -213,7 +235,8 @@ static gpointer consumer_thread (gpointer p)
 	    //semaphore_v (thbuf->empty);
 	    //g_mutex_unlock (chunk->mutex);
 	    g_free (chunk);
-	    semaphore_p (consume_eof_sem);
+	    //semaphore_p (consume_eof_sem);
+	    static_semaphore_p (&consume_eof_sem);
 	    continue;
 	 }
       }
@@ -230,7 +253,8 @@ static gpointer consumer_thread (gpointer p)
 	    LOG ("got EOF 3");
 	    input_plugin_set_end_of_file ();
 	    g_usleep (50000);
-	    semaphore_p (consume_eof_sem);
+	    //semaphore_p (consume_eof_sem);
+	    static_semaphore_p (&consume_eof_sem);
 	 }
 	 continue;
       }
@@ -252,7 +276,8 @@ static gpointer consumer_thread (gpointer p)
 	 LOG ("got EOF 2");
 	 input_plugin_set_end_of_file ();
 	 g_usleep (50000);
-	 semaphore_p (consume_eof_sem);
+	 //semaphore_p (consume_eof_sem);
+	 static_semaphore_p (&consume_eof_sem);
 	 //g_usleep (10000);
 	 //g_free (chunk);
 	 //continue;
@@ -310,13 +335,19 @@ void bossao_pause (void)
       }*
    */
    //semaphore_v (pause_sem);
-   if (cons_pause_sem->count != 0) {
-      semaphore_p (cons_pause_sem);
-      cons_pause_sem->count = 0;
+   //if (cons_pause_sem->count != 0) {
+   if (cons_pause_sem.count != 0) {
+      //semaphore_p (cons_pause_sem);
+      static_semaphore_p (&cons_pause_sem);
+      //cons_pause_sem->count = 0;
+      cons_pause_sem.count = 0;
    }
-   if (prod_pause_sem->count != 0) {
-      semaphore_p (prod_pause_sem);
-      prod_pause_sem->count = 0;
+   //if (prod_pause_sem->count != 0) {
+   if (prod_pause_sem.count != 0) {
+      //semaphore_p (prod_pause_sem);
+      static_semaphore_p (&prod_pause_sem);
+      //prod_pause_sem->count = 0;
+      prod_pause_sem.count = 0;
    }
 }
 
@@ -329,10 +360,14 @@ void bossao_unpause (void)
       LOG ("unpaused");
    }
    */
-   cons_pause_sem->count = 0;
-   semaphore_v (cons_pause_sem);
-   prod_pause_sem->count = 0;   
-   semaphore_v (prod_pause_sem);
+   //cons_pause_sem->count = 0;
+   cons_pause_sem.count = 0;
+   //semaphore_v (cons_pause_sem);
+   static_semaphore_v (&cons_pause_sem);
+   //prod_pause_sem->count = 0;
+   prod_pause_sem.count = 0;
+   //semaphore_v (prod_pause_sem);
+   static_semaphore_v (&prod_pause_sem);
 }
 
 gint first = 1;
@@ -363,7 +398,8 @@ void bossao_stop (void)
    } else
       first = 0;
    LOG ("about to clear");
-   thbuf_clear (thbuf);
+   //thbuf_clear (thbuf);
+   thbuf_static_clear (&thbuf);
    LOG ("cleared");
    input_close ();
    LOG ("closed");
@@ -374,19 +410,25 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
 {
    bossao_thread_init ();
 
-   produce_eof_sem = semaphore_new (0);
-   consume_eof_sem = semaphore_new (0);
+   static_semaphore_new (&produce_eof_sem, 0, &produce_eof_sem_mutex);
+   static_semaphore_new (&consume_eof_sem, 0, &consume_eof_sem_mutex);
    
    init_plugins (cfgparser);
 
    output_plugin_open_all (cfgparser);
 
    //pause_mutex = g_mutex_new ();
-   prod_pause_sem = semaphore_new (0);
-   cons_pause_sem = semaphore_new (0);
+   //prod_pause_sem = semaphore_new (0);
+   //cons_pause_sem = semaphore_new (0);
+   static_semaphore_new (&prod_pause_sem, 0, &prod_pause_sem_mutex);
+   static_semaphore_new (&cons_pause_sem, 0, &cons_pause_sem_mutex);
    //produce_mutex = g_mutex_new ();
-   thbuf = thbuf_new (THBUF_SIZE);
-   thbuf_set_free_callback (thbuf, buffer_free_callback);
+   //thbuf = thbuf_new (THBUF_SIZE);
+   thbuf_static_new (&thbuf, THBUF_SIZE, &thbuf_mutex,
+		     &thbuf_empty_sem, &thbuf_empty_sem_mutex,
+		     &thbuf_full_sem, &thbuf_full_sem_mutex);
+   //thbuf_set_free_callback (thbuf, buffer_free_callback);
+   thbuf_static_set_free_callback (&thbuf, buffer_free_callback);
 
    if (filename != NULL)
       bossao_play (filename);
@@ -429,13 +471,16 @@ void bossao_free (void)
 
    //g_mutex_lock (pause_mutex);
    //g_mutex_free (pause_mutex);
-   semaphore_free (prod_pause_sem);
-   semaphore_free (cons_pause_sem);
+   //semaphore_free (prod_pause_sem);
+   //semaphore_free (cons_pause_sem);
+   static_semaphore_free (&prod_pause_sem);
+   static_semaphore_free (&cons_pause_sem);
    LOG ("pause mutex freed");
    //g_mutex_lock (produce_mutex);
    //g_mutex_free (produce_mutex);
    LOG ("produce mutex freed");
-   thbuf_free (thbuf);
+   //thbuf_free (thbuf);
+   thbuf_static_free (&thbuf);
    LOG ("thbuf freed");
 }
 
@@ -446,12 +491,16 @@ gint bossao_play (gchar *filename)
    input_open (plugin, filename);
    //bossao_pause ();
    stopped = 0;
-   produce_eof_sem->count = 0;
-   consume_eof_sem->count = 0;
+   //produce_eof_sem->count = 0;
+   //consume_eof_sem->count = 0;
+   produce_eof_sem.count = 0;
+   consume_eof_sem.count = 0;
    g_usleep (10000);
-   semaphore_v (produce_eof_sem);
+   //semaphore_v (produce_eof_sem);
+   static_semaphore_v (&produce_eof_sem);
    g_usleep (10000);
-   semaphore_v (consume_eof_sem);
+   //semaphore_v (consume_eof_sem);
+   static_semaphore_v (&consume_eof_sem);
    //g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
    g_usleep (50000);
