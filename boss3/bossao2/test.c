@@ -155,6 +155,7 @@ int main (int argc, char *argv[])
       LOG ("Problem creating producer thread");
       exit (-6);
    }
+   g_usleep (100000);
    consumer_thread = g_thread_create (consumer, NULL, TRUE, NULL);
    if (consumer_thread == NULL) {
       LOG ("Problem creating consumer thread");
