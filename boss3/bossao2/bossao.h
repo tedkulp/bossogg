@@ -63,7 +63,7 @@ extern "C" {
     char *filename;
     double seek;
     int shutdown;
-    int pause;
+    //int pause;
     int newfile;
     int free;
     songlib_s *songlib;

@@ -17,6 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -227,7 +228,7 @@ static int destroy_media (song_s *song)
 #endif
 
   song->done = 1;
-  song->pause = 1;
+  //song->pause = 1;
   song->shutdown = 1;
 
   //pthread_mutex_unlock (&song->mutex);
@@ -344,16 +345,16 @@ static void *reader (void *arg)
  
   while (1) {
     pthread_mutex_lock (buf->mutex);
-    song = (song_s *)buf->p;
+    //song = (song_s *)buf->p;
     while (buf->empty) {
       printf ("queue empty\n");
       pthread_cond_wait (buf->not_empty, buf->mutex);
       printf ("done waiting\n");
-      usleep (10);
+      //usleep (10);
     }
     while (buf->paused) {
       pthread_cond_wait (buf->not_paused, buf->mutex);
-      usleep (10);
+      //usleep (10);
     }
     buffer = (unsigned char *)thbuf_rem (buf, &size); 
     //printf ("buffer is %p\n", buffer);
@@ -361,10 +362,23 @@ static void *reader (void *arg)
     pthread_cond_broadcast (buf->not_full);
 
     if (size > 0 && size < 100000) {
+      int i;
+      int16_t *p = (int16_t *)&buffer[0];
+      for (i = 0; i < size / 2; i++) {
+	//buffer[i] = buffer[i] * 0.5;
+	int32_t temp;
+	temp = p[i];
+	temp *= 100;
+	temp /= 100;
+	p[i] = temp > 32767 ? 32767 : (temp < -32768 ? -32768 : temp);
+      }
       bossao_play_chunk (song, buffer, size);
+      //printf ("calling free with %p\n", buffer);
       free (buffer);
+      //printf ("done calling free\n");
     } else {
-      printf ("not playing %d at %d (tail is %d)\n", size, buf->head, buf->tail);
+      //printf ("not playing %d at %d (tail is %d)\n", size, buf->head, buf->tail);
+      usleep (10000);
     }
 
     usleep (0);
@@ -392,11 +406,11 @@ static void *writer (void *arg)
     while (buf->full) {
       printf ("queue full\n");
       pthread_cond_wait (buf->not_full, buf->mutex);
-      usleep (10);
+      //usleep (10);
     }
     while (buf->paused) {
       pthread_cond_wait (buf->not_paused, buf->mutex);
-      usleep (10);
+      //usleep (10);
     }
 
     FILE *file = fopen ("log.txt", "a");
@@ -416,7 +430,7 @@ static void *writer (void *arg)
     pthread_mutex_unlock (buf->mutex);    
     
     if (val < buf_size - 10) {
-      usleep (0);
+      //usleep (0);
       buffer = chunk_play_media (song, &size, song->device);
       pthread_mutex_lock (buf->mutex);
       while (buf->full) {
@@ -443,12 +457,13 @@ static void *bossao_thread (void *arg)
   thbuf_s *buf = song->thbuf;
   buf->p = song;
   pthread_t read, write;
-
+  /*
   char *filename = (char *)malloc (sizeof ("/home/adam/bbking.flac"));
   filename = strcpy (filename, "/home/adam/bbking.flac");
   song->filename = filename;
   printf ("using %s\n", song->filename);
   prepare_media (song);
+  */
 
   pthread_create (&read, NULL, reader, buf);
   pthread_create (&write, NULL, writer, buf);
@@ -481,7 +496,7 @@ static ao_device *bossao_begin (song_s *song)
   int enable = 0;
 
   song->shutdown = 0;
-  song->pause = 0;
+  //song->pause = 0;
   song->newfile = 1;
   song->device = bossao_open ();
 #ifdef HAVE_SHOUT
@@ -543,10 +558,11 @@ int bossao_start (song_s *song, PyObject *cfgparser)
   */
 
   song->shutdown = 1;
-  song->pause = 1;
+  //song->pause = 1;
   song->cfgparser = cfgparser;
 
   pthread_create (&thread, NULL, bossao_thread, (void*)song);
+  //pthread_join (thread, NULL);
 
   return 0;	
 }
@@ -614,7 +630,7 @@ int bossao_play (song_s *song, char *filename)
   song->shutdown = 0;
   song->newfile = 1;
   song->done = 0;
-  song->pause = 0;
+  //song->pause = 0;
 
   if (song->device == NULL) {
     song->device = bossao_begin (song);
@@ -637,26 +653,6 @@ int bossao_play (song_s *song, char *filename)
   pthread_mutex_unlock (&song->mutex);	
   
   return 0;	
-}
-
-int bossao_pause (song_s *song)
-{
-  pthread_mutex_lock (&song->mutex);
-  /* old stuff
-  if (song->pause)
-    song->pause = 0;
-  else 
-    song->pause = 1;
-  */
-
-  //thbuf
-  pthread_mutex_lock (song->thbuf->mutex);
-  song->thbuf->paused = 1;
-  pthread_mutex_unlock (song->thbuf->mutex);	
-  
-  pthread_mutex_unlock (&song->mutex);
-  
-  return song->pause;
 }
 
 void bossao_stop (song_s *song)
@@ -703,6 +699,34 @@ int bossao_unpause (song_s *song)
   pthread_mutex_unlock (&song->mutex);
   
   return 0;
+}
+
+int bossao_pause (song_s *song)
+{
+  pthread_mutex_lock (&song->mutex);
+  /* old stuff
+  if (song->pause)
+    song->pause = 0;
+  else 
+    song->pause = 1;
+  */
+
+  //thbuf
+  pthread_mutex_lock (song->thbuf->mutex);
+  if (song->thbuf->paused == 0) {
+    song->thbuf->paused = 1;
+    pthread_mutex_unlock (song->thbuf->mutex);
+  } else {
+    song->thbuf->paused = 0;
+    pthread_mutex_unlock (song->thbuf->mutex);
+    pthread_cond_broadcast (song->thbuf->not_paused);
+    //return song->thbuf->paused;
+  }
+  //pthread_mutex_unlock (song->thbuf->mutex);	
+  
+  pthread_mutex_unlock (&song->mutex);
+  
+  return song->thbuf->paused;
 }
 
 double bossao_time_current (song_s *song)

@@ -252,7 +252,7 @@ char *chunk_play_mp3 (song_s *song, int *size)
 
   if ((ret = mp3_read (song, size)) == NULL) {
     printf ("breaked\n");
-    return 0;
+    return NULL;
   }
 
   //printf ("*** got %d\n", size);
