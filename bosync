@@ -314,12 +314,11 @@ def process_changes(new_files, mod_files, del_files):
 					try:
 						rpc.db("importsong", sinfo)
 					except:
-						if sys.exc_info()[1] and 'faultCode' in sys.exc_info()[1] and 'faultString' in sys.exc_info()[1]:
-							errors.append("Error on impor: %s (%s:%s)" % (file, getattr(sys.exc_info()[1],'faultCode'), getattr(sys.exc_info()[1],'faultString')))
+						log.exception("Import returned error:")
 
-			if len(errors):
-				log.error("There were errors importing some songs:")
-				log.error(string.join(errors, "\n"))
+			#if len(errors):
+			#	log.error("There were errors importing some songs:")
+			#	log.error(string.join(errors, "\n"))
 
 		if del_files:
 			display("Deleting files: %d files removed from database" % len(del_files))
