@@ -31,7 +31,7 @@ class BossClientInterface:
 
 class BossRpcServer(threading.Thread):
 
-	compression = True
+	compression = False
 
 	interface = None
 
@@ -47,9 +47,13 @@ class BossRpcServer(threading.Thread):
 
 	shutdown = False
 
-	def encodeXmlRpc(obj,methodname=None,methodresponse=False):
-		xml = string.strip(xmlrpclib.dumps(obj, methodname=methodname, methodresponse=methodresponsee))
-		xml = zlib.compress(xml)
+	def encodeBossRpc(self,obj,methodname=None,methodresponse=False):
+		xml = string.strip(xmlrpclib.dumps(obj, methodname=methodname, methodresponse=methodresponse))
+		if self.compression == True:
+			xml = zlib.compress(xml)
+			return "%i:z:%s" % (len(xml),xml)
+		else:
+			return "%i::%s" % (len(xml),xml)
 
 	def __init__(self):
 		threading.Thread.__init__(self)
@@ -119,19 +123,20 @@ class BossRpcServer(threading.Thread):
 									if sessionid != None:
 										log.debug("bossrpc","Received sessionid: %s",sessionid)
 										self.sessions[i.fileno()] = sessionid
-										newxml = encodeXmlRpc(sessionid,methodreponse=True)
+										newxml = self.encodeBossRpc(sessionid,methodresponse=True)
 									else:
 										log.deug("bossrpc","Invalid login")
-										newxml = encodeXmlRpc("Permission Denied",methodreponse=True)
-									i.sendall("%i:z:%s" % (len(newxml),newxml))
+										newxml = self.encodeBossRpc("Permission Denied",methodresponse=True)
+									i.sendall(newxml)
 							elif response[1] in dir(self.interface) and callable(getattr(self.interface, response[1])):
 								ans = (getattr(self.interface,response[1])(*response[0]),)
 								#print ans
-								xml = string.strip(xmlrpclib.dumps(ans, methodresponse=True))
+								#xml = string.strip(xmlrpclib.dumps(ans, methodresponse=True))
 								#log.debug("bossrpc","Sending xmlrpc message: %s",str(ans))
-								xml = zlib.compress(xml)
+								#xml = zlib.compress(xml)
 								#print xml
-								i.sendall("%i:z:%s" % (len(xml),xml))
+								bossxml = self.encodeBossRpc(ans,methodresponse=True)
+								i.sendall(bossxml)
 							del self.lengths[i.fileno()]
 							del self.data[i.fileno()]
 		readable, writable, errorable = select.select(self.readable_in,self.writable_in,self.errorable_in,0)

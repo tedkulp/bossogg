@@ -45,6 +45,7 @@ class ServerProxy:
 			start = 1
 			maxlen = 1
 			result = ''
+			flags = ''
 			while len(result) < maxlen or start == 1:
 				if start == 1:
 					(maxlen,flags,result) = string.split(self.s.recv(1024),':',2)
@@ -53,7 +54,8 @@ class ServerProxy:
 				else:
 					result += self.s.recv(1024)
 			self.lock.release()
-			result = zlib.decompress(result)
+			if 'z' in flags:
+				result = zlib.decompress(result)
 			#print result
 			result = xmlrpclib.loads(result)[0][0]
 			#print ("result: %s" % str(result))
