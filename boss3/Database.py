@@ -52,14 +52,13 @@ class Database:
 	genrecache = {}
 	artistcache = {}
 	albumcache = {}
-	dblocked = False
 	getgenrestatus = False
 	getartiststatus = False
 	getmetaartiststatus = False
 	getalbumstatus = False
 	getsongstatus = False
 	#cursong = None
-	importcon = None
+	import_db = None
 
 	class _Cursor(sqlite.Cursor):
 		nolock=0
@@ -561,10 +560,16 @@ class Database:
 		self.i_songcache = {}
 		#self.cursong = session['xinelib'].createSong()
 		#self.cursong.songInit()
-		self.dblocked = True
-		self.importcon = self.conn.cursor()
-		self.importcon.nolock=1
-		cursor=self.importcon
+		if self.import_db:
+			log.error("There is already a connection to the DB for importing. Is there another one running?")
+			raise
+
+		self.import_db = {}
+		self.import_db["connection"] = sqlite.connect(db=self.dbname, mode=0755, autocommit=True)
+		self.import_db["cursor"] = self.import_db["connection"].cursor()
+		#self.import_db["cursor"].nolock=1
+		cursor=self.import_db["cursor"]
+
 		SQL = "select artistname,artistid from artists"
 		log.debug("sqlquery", SQL)
 		cursor.execute(SQL)		
@@ -585,24 +590,18 @@ class Database:
 			log.debug("sqlresult", "%s", row)
 			self.i_songcache[row[0]] = int(row[1])
 			
-		SQL = "begin transaction"
-		log.debug("sqlquery", "TRANS: %s", SQL)
-		cursor.execute(SQL)
-
 	def importEnd(self):
 		log.debug("funcs", "Database.importEnd()")
-		cursor = self.importcon
+		cursor = self.import_db["cursor"]
 		SQL = "DELETE FROM albums WHERE albumid NOT IN (SELECT albumid FROM songs)"
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		SQL = "DELETE FROM artists WHERE artistid NOT IN (SELECT artistid FROM songs) and artistid NOT IN (SELECT metaartistid as artistid FROM songs)"
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
-		#self.conn.commit()
-		SQL = "commit transaction"
-		log.debug("sqlquery", SQL)
-		cursor.execute(SQL);
-		self.dblocked = False
+		#self.import_db["connection"].commit()
+		self.import_db["connection"].close()
+		self.import_db = None
 		log.debug("import", "Import complete, loading song cache (before %d)", len(self.songcache))
 		try:
 			self.loadSongCache()
@@ -612,12 +611,9 @@ class Database:
 
 	def importCancel(self):
 		log.debug("funcs", "Database.importCancel()")
-		cursor = self.importcon
-		SQL = "rollback transaction"
-		log.debug("sqlquery", SQL)
-		cursor.execute(SQL)
-		#self.conn.rollback()
-		self.dblocked = False
+		#self.import_db["connection"].rollback()
+		self.import_db["connection"].close()
+		self.import_db = None
 
 	def importUpload(self, filename, songdata):
 		log.debug("funcs", "Database.importUpload()")
@@ -655,7 +651,7 @@ class Database:
 
 	def importDelete(self, arrayofsongs):
 		log.debug("funcs", "Database.importDelete()")
-		cursor = self.importcon
+		cursor = self.import_db["cursor"]
 		result = 0
 		for somesong in arrayofsongs:
 			somesong = self.checkBinary(somesong)
@@ -719,7 +715,7 @@ class Database:
 	def _getGenre(self, genrename):
 		gid = -1
 		genrename = string.strip(genrename)
-		cursor = self.importcon
+		cursor = self.import_db["cursor"]
 		if genrename not in self.genrecache:
 			SQL = "select genreid from genres where genrename = %s"
 			log.debug("sqlquery", SQL, genrename)
@@ -754,7 +750,7 @@ class Database:
 		log.debug("funcs", "Database._getArtist()")
 		aid = -1
 		artistname = string.strip(artistname)
-		cursor = self.importcon
+		cursor = self.import_db["cursor"]
 		#See if this artist is already in the cache
 		if artistname not in self.artistcache:
 			#SQL = "select artistid from artists where artistname = %s"
@@ -790,7 +786,7 @@ class Database:
 	def _getAlbum(self, albumname, artistid, year):
 		tid = -1
 		albumname = string.strip(albumname)
-		cursor = self.importcon
+		cursor = self.import_db["cursor"]
 		#See if this album is already in the cache
 		if str(str(artistid) + albumname) not in self.albumcache:
 			#SQL = "select albumid from albums where albumname = %s"
@@ -823,7 +819,7 @@ class Database:
 		sid = -1
 		songname = string.strip(songname)
 		filename = string.strip(filename)
-		cursor = self.importcon
+		cursor = self.import_db["cursor"]
 		#SQL = "select songid from songs where filename = %s"
 		#log.debug("sqlquery", SQL, filename)
 		#cursor.execute(SQL, filename)
