@@ -51,7 +51,7 @@ channels = (
 	"import", "database", "interact", "file",
 	"misc", "network", "audio", "config",
 	"sql", "sqlquery", "sqlresult", "cache", "funcs", "lock",
-	"queue", "xmlrpc", "oldlog", "utf", 
+	"queue", "xmlrpc", "oldlog", "utf", "bossrpc"
 	)
 
 #

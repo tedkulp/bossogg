@@ -260,6 +260,9 @@ def runBoss():
 	log.debug("network", "Starting XML-RPC Server")
 	_loadModule(["boss3.xmlrpc.XmlRpcServer"], True)
 
+	log.debug("network", "Starting Boss-RPC Server")
+	_loadModule(["boss3.bossrpc.BossRpcServer"], True)
+
 	#log.debug("Starting Boss2 Compatible XML-RPC Server")
 	#_loadModule(["boss3.xmlrpc.Boss2XmlRpcServer"], True)
 

@@ -142,7 +142,7 @@ class Player(threading.Thread):
 			self.state = "SHUTDOWN"
 		else:
 			time.sleep(.1)
-			#log.debug("audio", "Using AO device: %s", bossao.bossao_driver_name(self.lib))
+			#log.debug("audio", "Using AO device: %s", bossao2.bossao_driver_name(self.lib))
 			self.aoinitialized = 1
 			self.shutdown = 0
 			self.state = "STOPPED"
@@ -254,6 +254,7 @@ class Player(threading.Thread):
 				time.sleep(self.sleeplength)
 
 			time.sleep(1)
+			log.debug("audio", "Calling shutdown")
 			bossao.bossao_shutdown(self.lib)
 		bossao.bossao_close_mixer(self.mixer)
 		log.debug("audio", "Closing lib")
