@@ -63,9 +63,12 @@ static void buffer_free_callback (void *p)
 {
    chunk_s *chunk = (chunk_s *)p;
    if (chunk) {
-      if (chunk->chunk)
+      if (chunk->chunk) {
 	 g_free (chunk->chunk);
+	 chunk->chunk = NULL;
+      }
       g_free (chunk);
+      chunk = NULL;
    }
 }
 
