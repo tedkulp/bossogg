@@ -1,3 +1,8 @@
+-- Version 0.13.4-rc5 - 13 Feb 2004 --
+* Import is once again inside one transaction.  This will help the
+  sync performance and also make cancelling mid-sync actually rollback
+  and not keep what has been imported so far.
+
 -- Version 0.13.4-rc4 - 12 Feb 2004 --
 * Fixed some error messages in bosync.  It seems to be working pretty well
   now.

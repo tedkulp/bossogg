@@ -16,7 +16,7 @@
 #Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 _boss_name = "Boss Ogg"
-_boss_version = "0.13.4-rc4"
+_boss_version = "0.13.4-rc5"
 
 def getName():
 	return _boss_name
