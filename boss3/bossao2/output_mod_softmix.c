@@ -75,7 +75,7 @@ void output_mod_run (gchar *chunk, gint size)
    // software mixing is easy, all you have to do is multiply
    // the samples by the volume percentage you want
    gshort *p = (gshort *)chunk;
-   for (i = 0; i < size / 2; i++) {
+   for (i = 0; i < size / sizeof (gshort); i++) {
       *p++ *= percent;
    }
 }

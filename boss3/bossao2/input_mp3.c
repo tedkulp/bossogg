@@ -291,7 +291,7 @@ static gint decode_next_frame_header (private_mp3_s *mp3)
 	 return DECODE_SKIP;
       } else {
 	 if ((mp3->mp3_stream).error == MAD_ERROR_BUFLEN)
-	    return DECODE_CONT;
+	    return DECODE_BREAK;
 	 else {
 	    LOG ("unrecoverable frame level error '%s'", mad_stream_errorstr (&mp3->mp3_stream));
 	    return DECODE_BREAK;
