@@ -206,11 +206,11 @@ thbuf_t *thbuf_new (size_t size)
    gint i;
 
    buf = (thbuf_t *)g_malloc (sizeof (thbuf_t));
-   buf->size = size;
+   buf->size = size - 1;
    buf->free_cb = NULL;
    
    // allocate size members of p's and the size array 
-   buf->buf = (void **)g_malloc (sizeof (void *) * (size) + 1);
+   buf->buf = (void **)g_malloc (sizeof (void *) * (size));
 
    // initialize all members to 0
    for (i = 0; i < size; i++) {

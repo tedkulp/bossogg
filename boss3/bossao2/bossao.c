@@ -143,7 +143,8 @@ static gpointer consumer_thread (gpointer p)
    chunk_s *chunk = (chunk_s *)0x1;
    gint64 last_sample_num = -1;
    gint count;
-
+   gint size;
+   
    g_usleep (100000);
 
    semaphore_p (eof_sem);
@@ -151,9 +152,14 @@ static gpointer consumer_thread (gpointer p)
    while (1) {
       //LOG ("consuming");
       g_mutex_lock (pause_mutex);
-      if (thbuf_current_size (thbuf))
+      size = thbuf_current_size (thbuf);
+      if (size > 10)
 	 chunk = (chunk_s *)thbuf_consume (thbuf, &count);
-      else {
+      else if (size) {
+	 LOG ("filling buffer...");
+	 chunk = (chunk_s *)thbuf_consume (thbuf, &count);
+	 g_usleep (10000);
+      } else {
 	 g_mutex_unlock (pause_mutex);
 	 g_usleep (10000);
 	 continue;
@@ -186,8 +192,9 @@ static gpointer consumer_thread (gpointer p)
       if (chunk->eof) {
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
-	 semaphore_p (eof_sem);
+	 g_usleep (10000);
 	 semaphore_v (thbuf->empty);
+	 semaphore_p (eof_sem);
 	 //g_usleep (10000);
 	 //g_free (chunk);
 	 continue;
@@ -289,7 +296,6 @@ void bossao_stop (void)
    LOG ("cleared");
    input_close ();
    LOG ("closed");
-   eof_sem->count = 0;
 }
 
 /* allocate the song, get the plugins ready */
@@ -362,13 +368,15 @@ gint bossao_play (gchar *filename)
    input_plugin_s *plugin = input_plugin_find (filename);
    input_plugin_set (plugin);
    input_open (plugin, filename);
+   bossao_pause ();
    stopped = 0;
    eof_sem->count = 0;
+   g_usleep (10000);
    semaphore_v (eof_sem);
    semaphore_v (eof_sem);
    //g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
-   g_usleep (100000);
+   g_usleep (50000);
    //paused = 0;
    //g_mutex_unlock (pause_mutex);
    bossao_unpause ();
