@@ -279,7 +279,6 @@ Percentage played: %5.1d	Times played: %s" % (s['songid'], s['tracknum'], util.U
 	def do_set(self, args):
 		cmdargs = string.split (args, " ", 2)
 		cmd = cmdargs[0]
-		print "len", len (cmdargs)
 		if cmd == "shutdown":
 			if self.server.set("shutdown"):
 				print "server has shutdown"

@@ -43,8 +43,12 @@ void output_mod_configure (gint arg1, gint arg2, gpointer user_data)
    if (user_data != NULL) {
       volume = *(gint *)user_data;
    }
+   // make sure it is a sane value
+   if (volume > 100)
+      volume = 100;
+   if (volume < 0)
+      volume = 0;
    percent = (gdouble)volume / 100.0;
-   LOG ("set volume to %d %f", volume, percent);
 }
 
 void output_mod_get_config (gint *arg1, gint *arg2, gpointer *user_data)
@@ -64,7 +68,6 @@ void output_mod_run (guchar *chunk, gint size)
    // software mixing is easy, all you have to do is multiply
    // the samples by the volume percentage you want
    gshort *p = chunk;
-   //guchar *p = chunk;
    for (i = 0; i < size / 2; i++) {
       *p++ *= percent;
    }

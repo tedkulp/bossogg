@@ -34,13 +34,14 @@ static char *plugin_name="flac";
 typedef struct private_flac_t {
    gdouble time_total;
    gdouble time_current;
-   gint samples_total;
-   gint samples_current;
+   gint64 samples_total;
+   gint64 samples_current;
    FLAC__FileDecoder *decoder;
    thbuf_sem_t *sem;
    gushort *buffer;
    gint buffer_size;
    gint was_metadata;
+   gint64 total_samples;
 } private_flac_s;
 
 gint _input_identify (gchar *filename)
@@ -77,7 +78,7 @@ gdouble _input_time_current (song_s *song)
    return p_flac->time_current;
 }
 
-gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
+gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num)
 {
    private_flac_s *p_flac = (private_flac_s *)song->private;
    FLAC__FileDecoder *decoder = (FLAC__FileDecoder *)p_flac->decoder;
@@ -85,16 +86,22 @@ gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
    FLAC__file_decoder_process_single (decoder);
 
    if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE) {
-      song->finished = 1;
+      //song->finished = 1;
+      *sample_num = p_flac->samples_total;
       *size = 0;
       LOG ("song is finished 1");
       return NULL;
    }
 
-   semaphore_p (p_flac->sem);
+   if (p_flac->samples_current != p_flac->samples_total)
+      semaphore_p (p_flac->sem);
+   else {
+      LOG ("avoided deadlock");
+   }
    *size = p_flac->buffer_size;
+   *sample_num = p_flac->samples_current;
    if (*size == 0) {
-      song->finished = 1;
+      //song->finished = 1;
       LOG ("song is finished 2");
       return NULL;
    }
@@ -154,13 +161,13 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
   p_flac->was_metadata = 0;
   
   if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE) {
-     song->finished = 1;
+     //song->finished = 1;
      LOG ("song is finished 3");
      semaphore_v (p_flac->sem);
   }
   if (p_flac->samples_current  >= p_flac->samples_total) {
-     LOG ("song is finished 4: %cur: d tot: %d", p_flac->samples_current, p_flac->samples_total);
-     song->finished = 1;
+     LOG ("song is finished 4");
+     //song->finished = 1;
      semaphore_v (p_flac->sem);
   }
   
@@ -218,7 +225,8 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
       if (block->type == FLAC__METADATA_TYPE_STREAMINFO)
 	 break;
    } while (FLAC__metadata_simple_iterator_next (it));
-   
+
+   p_flac->total_samples = block->data.stream_info.total_samples;
    p_flac->time_total = ((gdouble)block->data.stream_info.total_samples) /
       block->data.stream_info.sample_rate;
    p_flac->time_current = 0;
@@ -235,6 +243,12 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
    FLAC__file_decoder_process_single (decoder);
 
    return song;
+}
+
+gint64 _input_samples_total (song_s *song)
+{
+   private_flac_s *p_flac = (private_flac_s *)song->private;
+   return p_flac->total_samples;
 }
 
 gint _input_close (song_s *song)

@@ -28,6 +28,7 @@
 
 #define INPUT_IMPLEMENTATION
 #import "input_plugin.h"
+#import "bossao.h"
 
 static input_plugin_s *current_plugin = NULL;
 static song_s *current_song = NULL;
@@ -90,10 +91,10 @@ inline gdouble input_time_current (void)
    }
 }
 
-inline gchar *input_play_chunk (gint *size, gchar *buf)
+inline gchar *input_play_chunk (gint *size, gint64 *sample_num)
 {
    if (current_song != NULL && current_plugin != NULL)
-      return current_plugin->input_play_chunk (current_song, size, buf);
+      return current_plugin->input_play_chunk (current_song, size, sample_num);
    else {
       LOG ("current song is NULL");
       return NULL;
@@ -176,6 +177,22 @@ void input_plugin_set (input_plugin_s *plugin)
    current_song = NULL;
 }
 
+void input_plugin_set_end_of_file (void)
+{
+   current_song->finished = 1;
+}
+
+gint64 input_plugin_samples_total (void)
+{
+   if (current_plugin != NULL) {
+      if (current_song != NULL)
+	 return current_plugin->input_samples_total (current_song);
+      else
+	 LOG ("current song is NULL");
+   } else
+      LOG ("current plugin is NULL");
+}
+
 /* attempt to open the input plugin  */
 input_plugin_s *input_plugin_open (gchar *filename)
 {
@@ -189,6 +206,7 @@ input_plugin_s *input_plugin_open (gchar *filename)
 
    plugin->input_identify = (input_identify_f)get_symbol (lib, "_input_identify");
    plugin->input_seek = (input_seek_f)get_symbol (lib, "_input_seek");
+   plugin->input_samples_total = (input_samples_total_f)get_symbol (lib, "_input_samples_total");
    plugin->input_time_total = (input_time_total_f)get_symbol (lib, "_input_time_total");
    plugin->input_time_current = (input_time_current_f)get_symbol (lib, "_input_time_current");
    plugin->input_play_chunk = (input_play_chunk_f)get_symbol (lib, "_input_play_chunk");
@@ -228,8 +246,6 @@ static void input_plugin_close_all_helper (gpointer item, gpointer user_data)
 /* close all input plugins */
 void input_plugin_close_all (void)
 {
-   input_plugin_s *plugin;
-   
    if (input_list == NULL) {
       LOG ("Input plugin list is already empty");
       return;

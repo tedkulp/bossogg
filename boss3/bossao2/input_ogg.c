@@ -67,6 +67,12 @@ gdouble _input_time_total (song_s *song)
    return ov_time_total (&p_ogg->vorbis_file, -1);
 }
 
+gint64 _input_samples_total (song_s *song)
+{
+   private_ogg_s *p_ogg = (private_ogg_s *)song->private;
+   return ov_pcm_total (&p_ogg->vorbis_file, -1);
+}
+
 /* return the current time
    currently broken since the read thread will be ahead of the write thread
 */
@@ -78,15 +84,20 @@ gdouble _input_time_current (song_s *song)
 }
 
 /* play a chunk */
-gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
+gchar *_input_play_chunk (song_s *song, gint *size, gint64 *sample_num)
 {
    gint current; 
    gchar *ret = g_malloc (BUF_SIZE);
    private_ogg_s *p_ogg = (private_ogg_s *)song->private;
+   *sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
    *size = ov_read (&p_ogg->vorbis_file, ret, BUF_SIZE / 2, 0, 2, 1, &current);
+
    if (*size == 0) {
+      *sample_num = ov_pcm_tell (&p_ogg->vorbis_file);
+      /*
       song->finished = 1;
       LOG ("end of file?");
+      */
       g_free (ret);
       return NULL;
    }

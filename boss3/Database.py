@@ -71,8 +71,8 @@ class Database:
 		def execute(self, SQL, *args, **kwargs):
 			needlock=0
 
-			if len(SQL)>0 and SQL.split()[0].lower() in ["delete", "update", "insert", "commit"] and not self.nolock:
-				needlock=1
+			#if len(SQL)>0 and SQL.split()[0].lower() in ["delete", "update", "insert", "commit"] and not self.nolock:
+			needlock=1
 
 			if needlock:
 				sql_lock.acquire()
