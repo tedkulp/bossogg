@@ -143,7 +143,7 @@ static gpointer consumer_thread (gpointer p)
       }
       if (chunk->eof) {
 	 LOG ("got EOF");
-	 g_usleep (10000);
+	 g_usleep (100000);
 	 continue;
       }
 
