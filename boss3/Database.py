@@ -221,6 +221,31 @@ class Database:
 			log.debug("sqlresult", "Row: %s", row)
 			return {"filename":row['songs.filename'], "songid":row['songs.songid'], "songlength":row['songs.songlength'], "flags":row['songs.flags']}
 		raise EndOfQueueException.EndOfQueueException("No songs left... need to go into stop mode")
+	
+	def getArtistInfo(self, artistid):
+		result = {}
+		cursor = self.conn.cursor()
+		SQL = "select artistid, aristname from artists where artistid = %s"
+		cursor.execute(SQL, artistid)
+		for row in cursor.fetchall():
+			log.debug("sqlresult", "XRow: %s", row)
+			result['artistid'] = row['artistid']
+			result['artistname'] = row['artistname']
+		return result
+
+	def getAlbumInfo(self, albumid):
+		result = {}
+		cursor = self.conn.cursor()
+		SQL = "select a.artistid, a.aristname, al.albumid, al.albumname, al.year from albums al inner join artists a on a.artistid = al.artistid where a.artistid = %s"
+		cursor.execute(SQL, albumid)
+		for row in cursor.fetchall():
+			log.debug("sqlresult", "XRow: %s", row)
+			result['artistid'] = row['a.artistid']
+			result['artistname'] = row['a.artistname']
+			result['albumid'] = row['a.albumid']
+			result['albumname'] = row['a.albumname']
+			result['albumyear'] = row['al.year']
+		return result
 
 	def getSongInfo(self, songid):
 		result = {}
