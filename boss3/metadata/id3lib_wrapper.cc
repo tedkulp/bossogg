@@ -140,7 +140,7 @@ static ID3_Tag *prepare_tag (char *filename)
     return NULL;
   }
 
-  ret = tag->Link (filename, true, true);
+  ret = tag->Link (filename, ID3TT_ALL);
   if (ret == 0) {
     //tag->Update (ID3TT_ALL);
     snprintf (buf, 256, "Problem reading file \'%s\', trying a different way", filename);
@@ -148,7 +148,7 @@ static ID3_Tag *prepare_tag (char *filename)
     delete tag;
     tag = new ID3_Tag;
     printf ("trying to link: \'%s\'\n", filename);
-    ret = tag->Link (filename, ID3TT_ALL);
+    ret = tag->Link (filename, true, true);
     if (ret == 0) {
       snprintf (buf, 256, "Sorry, I tried to update but the tag is still messed up");
       log_msg (buf, FL, FN, LN);
@@ -208,15 +208,17 @@ static int get_header_info (ID3_Tag *tag, text_tag_s **text_tag)
 static const char *frame_id_text (ID3_FrameID fid)
 {  
   if (fid == ID3FID_LEADARTIST)
-	return "artistname";
+    return "artistname";
   if (fid == ID3FID_TITLE)
-	return "songname";
+    return "songname";
   if (fid == ID3FID_ALBUM)
-	return "albumname";
+    return "albumname";
   if (fid == ID3FID_YEAR)
-	return "year";
+    return "year";
   if (fid == ID3FID_TRACKNUM)
-	return "track";
+    return "track";
+  if (fid == ID3FID_CONTENTGROUP)
+    return "genre";
 }
 
 /* i guess with mp3 genre isn't stored in the normal tag
@@ -234,27 +236,30 @@ static void fill_text_tag (ID3_Tag *tag, text_tag_s **text_tag, int type)
   char buf[256];
 
   if (type == ARTIST) {
-	fid = ID3FID_LEADARTIST;
-	(*text_tag)->artistname = ID3_GetArtist (tag);
+    fid = ID3FID_LEADARTIST;
+    (*text_tag)->artistname = ID3_GetArtist (tag);
   } else if (type == TITLE) {
-	fid = ID3FID_TITLE;
-	(*text_tag)->songname = ID3_GetTitle (tag);
+    fid = ID3FID_TITLE;
+    (*text_tag)->songname = ID3_GetTitle (tag);
   } else if (type == ALBUM) {
-	fid = ID3FID_ALBUM;
-	(*text_tag)->albumname = ID3_GetAlbum (tag);
+    fid = ID3FID_ALBUM;
+    (*text_tag)->albumname = ID3_GetAlbum (tag);
   } else if (type == YEAR) {
-	fid = ID3FID_YEAR;
-	ptr = ID3_GetYear (tag);
-	if (ptr != NULL)
-	  (*text_tag)->year = atoi (ptr);
+    fid = ID3FID_YEAR;
+    ptr = ID3_GetYear (tag);
+    if (ptr != NULL)
+      (*text_tag)->year = atoi (ptr);
   } else if (type == TRACK) {
-	fid = ID3FID_TRACKNUM;
-	ptr = ID3_GetTrack (tag);
-	if (ptr != NULL)
-	  (*text_tag)->track = atoi (ptr);
+    fid = ID3FID_TRACKNUM;
+    ptr = ID3_GetTrack (tag);
+    if (ptr != NULL)
+      (*text_tag)->track = atoi (ptr);
+  } else if (type == GENRE) {
+    fid = ID3FID_CONTENTGROUP;
+    (*text_tag)->genre = ID3_GetGenre (tag);
   } else {
-	snprintf (buf, 256, "Type \'%s\' not found in frame", frame_id_text (fid));
-	log_msg (buf, FL, FN, LN);
+    snprintf (buf, 256, "Type \'%s\' not found in frame", frame_id_text (fid));
+    log_msg (buf, FL, FN, LN);
   }
 }
 
@@ -276,7 +281,6 @@ int id3lib_wrapper (char *filename, text_tag_s **text_tag)
   fill_text_tag (tag, text_tag, YEAR);
   fill_text_tag (tag, text_tag, TRACK);
   fill_text_tag (tag, text_tag, GENRE);
-  get_genre (tag, text_tag);
   
   delete tag;
   
