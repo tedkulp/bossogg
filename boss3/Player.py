@@ -157,6 +157,7 @@ class Player(threading.Thread):
 			self.playedflag = 1
 			self.songid = self.songdetails["songid"]
 			self.state = "PLAYING"
+			self.dbh.incrementTimesStarted(self.songid);
 			self.sleeplength = .1
 
 	def handleStopCommand(self):
