@@ -42,6 +42,7 @@ static gpointer producer (gpointer p)
       //LOG ("producing");
       //output_plugin_write_chunk_all (NULL, chunk, size);
       //thbuf_produce (thbuf, chunk, size, pos);
+      //LOG ("in chunk is %d %p", size, chunk);
       thbuf_produce (thbuf, chunk, size, prod_pos);
       if (chunk == NULL) {
 	 LOG ("got a null chunk, ending thread");
@@ -53,10 +54,12 @@ static gpointer producer (gpointer p)
       prod_pos++;
       //if (pos >= THBUF_SIZE) {
       if (prod_pos >= THBUF_SIZE) {
-	 LOG ("producer thread wrapped");
+	 LOG ("producer thread wrapped %d %d", prod_pos, cons_pos);
 	 //pos = 0;
 	 prod_pos = 0;
       }
+      //if (cons_pos == prod_pos + 1)
+//	 g_usleep (10000);
       g_thread_yield ();
    }
       
@@ -86,14 +89,14 @@ static gpointer consumer (gpointer p)
 	 g_thread_exit (0);
       }
       /* comment this next line if you want the producer to play audio */
-      LOG ("out chunk is %d %p", size, chunk);
+      //LOG ("out chunk is %d %p", size, chunk);
       output_plugin_write_chunk_all (NULL, chunk, size);
       g_free (chunk);
       //pos++;
       cons_pos++;
       //if (pos >= THBUF_SIZE) {
       if (cons_pos >= THBUF_SIZE) {
-	 LOG ("consumer thread wrapped");
+	 LOG ("consumer thread wrapped %d %d", prod_pos, cons_pos);
 	 //pos = 0;
 	 cons_pos = 0;
       }
@@ -178,6 +181,7 @@ int main (int argc, char *argv[])
    plugin = input_plugin_find (argv[2]);
    input_plugin_set (plugin);
    input_open (song, argv[2]);
+   g_usleep (10000);
    g_mutex_unlock (cons_pause_mutex);
    //sleep (secs_to_sleep);
 
