@@ -82,6 +82,11 @@ class Database:
 				sqlite.Cursor.execute(self, SQL, *args)
 			except:
 				log.exception("SQL ERROR")
+				if needlock and not self.nolock:
+					sql_lock.release()
+					log.debug("lock", "Release lock for database writes", stack=1)
+				raise
+
 			if needlock and not self.nolock:
 				sql_lock.release()
 				log.debug("lock", "Release lock for database writes", stack=1)
