@@ -183,7 +183,7 @@ int main (int argc, char *argv[])
    input_open (song, argv[2]);
    g_usleep (100000);
    g_mutex_unlock (cons_pause_mutex);
-   //sleep (secs_to_sleep);
+   sleep (secs_to_sleep);
 
    LOG ("joining..");
    
