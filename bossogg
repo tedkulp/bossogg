@@ -215,6 +215,7 @@ def runBoss():
 	signal.signal(signal.SIGTERM, stopBoss)
 	signal.signal(signal.SIGINT, stopBoss)
 
+
 	log.info("Boss3 Started - Python version %s", sys.version)
 
 	#Make sure database exists and is an up to date schema
@@ -282,7 +283,6 @@ def runBoss():
 		stopBoss(None, None)
 
 	#stopBoss()
-
 
 if __name__ == "__main__":
 # added a comment to make a test commit      

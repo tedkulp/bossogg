@@ -68,7 +68,7 @@ class Database:
 			f=f.f_back
 			return os.path.basename(f.f_code.co_filename), f.f_lineno
 
-		def __execute(self, SQL, *args):
+		def execute(self, SQL, *args):
 			needlock=0
 
 			if len(SQL)>0 and SQL.split()[0].lower() in ["delete", "update", "insert"]:
@@ -84,25 +84,6 @@ class Database:
 			if needlock and not self.nolock:
 				sql_lock.release()
 				log.debug("lock", "Release lock for database writes at (%s:%d)" % self.getcaller())
-
-		def execute(self, SQL, *args):
-			loopcnt = 0
-
-			while 1:
-				loopcnt = loopcnt + 1
-				try:
-					sqlite.Cursor.execute(self, SQL, *args)
-					break
-				except sqlite.OperationalError:
-					if loopcnt >= 5:
-						log.error("Can't get time with the DB, It's still locked after 5 retries")
-						raise
-					log.debug("sql", "DB is locked, sleeping, then trying again")
-					time.sleep(0.5)
-					continue
-				except:
-					log.exception("SQL ERROR")
-					break
 
 	def _cursor(self):
 		self.conn._checkNotClosed("cursor")
