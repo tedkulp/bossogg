@@ -106,7 +106,9 @@ static gpointer producer_thread (gpointer p)
       }
       if (eof_once) {
 	 LOG ("sleeping...");
-	 g_usleep (100000);
+	 while (last_filename == input_filename ())
+	    g_usleep (1000);
+	 //g_usleep (100000);
 	 eof_once = 0;
       }
       cur_chunk->eof = eof;
