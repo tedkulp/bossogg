@@ -16,20 +16,20 @@
 // close the audio devices (untested)
    void bossao_close (void); 
 // seek specified time delta
-   gint bossao_seek (gdouble secs);
+   int bossao_seek (double secs);
 // stop playing and unload current file
    void bossao_stop (void);
 // play given filename
-   gint bossao_play (char *filename);
+   int bossao_play (char *filename);
 // pause the player
    void bossao_pause (void);
 // unpause the player
    void bossao_unpause (void);
 // check to see if playing is complete
-   gint bossao_finished (void);
+   int bossao_finished (void);
 // check the total time of the playing file
    double bossao_time_total (void);
 // check the current time of the playing file
    double bossao_time_current (void);
 // get the filename of the current playing file
-   gchar *bossao_filename (void);
+   char *bossao_filename (void);

@@ -126,7 +126,7 @@ void *thbuf_consume (thbuf_t *buf, size_t *size, gint pos)
    //critical section, remove the data from the thbuf 
    g_mutex_lock (buf->mutex);
    void *ret = buf->buf[pos % THBUF_SIZE];
-   *size = buf->chunk_size[pos];
+   *size = buf->chunk_size[pos % THBUF_SIZE];
    buf->buf[pos % THBUF_SIZE] = NULL;
    buf->chunk_size[pos % THBUF_SIZE] = 0;
    //LOG ("got %p from %d e:%d f:%d %d", ret, pos, buf->empty->count, buf->full->count, *size);

@@ -34,6 +34,7 @@ static GMutex *pause_mutex, *produce_mutex;
 static GThread *producer, *consumer;
 static gint producer_pos = 0;
 static gint consumer_pos = 0;
+static gint paused = 1;
 
 /* all the modules use this function to load symbols from dynamic libs */
 gpointer get_symbol (GModule *lib, gchar *name)
@@ -53,9 +54,9 @@ static gpointer producer_thread (gpointer p)
    gchar *chunk;
 
    while (1) {
+      chunk = input_play_chunk (&size, NULL/*&chunks[producer_pos * BUF_SIZE]*/);
       g_mutex_lock (produce_mutex);
       //LOG ("about to produce %d", producer_pos);
-      chunk = input_play_chunk (&size, NULL/*&chunks[producer_pos * BUF_SIZE]*/);
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
 	 g_usleep (100000);
@@ -68,10 +69,9 @@ static gpointer producer_thread (gpointer p)
       producer_pos %= THBUF_SIZE;
       if (producer_pos == 0) {
 	 LOG ("producer thread wrapped %d %d", producer_pos, consumer_pos);
-	 producer_pos = 0;
       }
       g_mutex_unlock (produce_mutex);
-      //g_usleep (0);
+      g_usleep (0);
       //g_thread_yield ();
    }
 
@@ -86,7 +86,6 @@ static gpointer consumer_thread (gpointer p)
 
    while (1) {
       g_mutex_lock (pause_mutex);
-      //LOG ("consumed %p %d %d %d", data, size, producer_pos, consumer_pos);
       data = thbuf_consume (thbuf, &size, consumer_pos);
       chunk = (gchar *)data;
       if (chunk == NULL || size == 0) {
@@ -96,17 +95,15 @@ static gpointer consumer_thread (gpointer p)
 	 continue;
       }
 
-      output_mod_plugin_run_all (chunk, size);
-      
-      output_plugin_write_chunk_all (chunk, size);
-      g_free (chunk);
       consumer_pos++;
       consumer_pos %= THBUF_SIZE;
       if (consumer_pos == 0) {
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
-	 consumer_pos = 0;
       }      
       g_mutex_unlock (pause_mutex);
+      output_mod_plugin_run_all (chunk, size);
+      output_plugin_write_chunk_all (chunk, size);
+      g_free (chunk);
       // give up the context in case the producer needs to get ahead
       g_usleep (0);
       //g_thread_yield ();
@@ -146,19 +143,28 @@ static void bossao_thread_init (void)
 inline void bossao_pause (void)
 {
    //g_mutex_lock (produce_mutex);
-   g_mutex_lock (pause_mutex);
+   if (paused == 0) {
+      g_mutex_lock (pause_mutex);
+      paused = 1;
+   }
 }
 
 inline void bossao_unpause (void)
 {
    //g_mutex_unlock (produce_mutex);
-   g_mutex_unlock (pause_mutex);
+   if (paused == 1) {
+      g_mutex_unlock (pause_mutex);
+      paused = 0;
+   }
 }
 
 inline void bossao_stop (void)
 {
    g_mutex_lock (produce_mutex);
-   g_mutex_lock (pause_mutex);
+   if (paused == 0) {
+      g_mutex_lock (pause_mutex);
+      paused = 1;
+   }
    thbuf_clear (thbuf);
    input_close ();
    consumer_pos = 0;
@@ -216,12 +222,14 @@ void bossao_free (void)
 
 gint bossao_play (gchar *filename)
 {
+   gint size;
    input_plugin_s *plugin = input_plugin_find (filename);
    input_plugin_set (plugin);
    input_open (filename);
    g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
    g_usleep (10000);
+   paused = 0;
    g_mutex_unlock (pause_mutex);
 
    return 0;
