@@ -444,7 +444,7 @@ class Auth:
 		* sessionid - string
 
 		Returns:
-		* int (1 if true, 0 if true)
+		* int (1 if true, 0 if false)
 		"""
 		session = Session()
 		return session['usrmgr'].cancelSession(sessionid)

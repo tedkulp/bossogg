@@ -49,11 +49,12 @@ class BossRpcServer(threading.Thread):
 
 	def encodeBossRpc(self,obj,methodname=None,methodresponse=False):
 		xml = string.strip(xmlrpclib.dumps(obj, methodname=methodname, methodresponse=methodresponse))
+		flags = ''
 		if self.compression == True:
+			flags = flags + 'z'
 			xml = zlib.compress(xml)
-			return "%i:z:%s" % (len(xml),xml)
-		else:
-			return "%i::%s" % (len(xml),xml)
+		#log.debug("bossrpc","%i:%s:%s" % (len(xml),flags,xml))
+		return "%i:%s:%s" % (len(xml),flags,xml)
 
 	def __init__(self):
 		threading.Thread.__init__(self)
@@ -86,6 +87,7 @@ class BossRpcServer(threading.Thread):
 					recvbuf = i.recv(self.buflength)
 					if len(recvbuf) == 0:
 						log.debug("bossrpc","Removing connection")
+						log.debug("bossrpc","%i:%s" % (i.fileno(),self.sessions.keys()))
 						if i.fileno() in self.sessions.keys():
 							if (session.hasKey('cmdint')):
 								cmdint = session['cmdint']
@@ -114,8 +116,8 @@ class BossRpcServer(threading.Thread):
 							xml = string.strip(zlib.decompress(xml))
 							response = xmlrpclib.loads(xml)
 							log.debug("bossrpc","Received xmlrpc message: %s",response)
-							if response[1] == "auth" and len(response) == 3 and "login" in response[0]:
-								log.debug("bossrpc","Received auth message: %s-%s",str(response[1]),str(response[0]))
+							if response[1] == "auth" and "login" in response[0]:
+								log.debug("bossrpc","Received login message: %s-%s",str(response[1]),str(response[0]))
 								if (session.hasKey('cmdint')):
 									cmdint = session['cmdint']
 									sessionid = cmdint.auth.login(response[0][1],response[0][2])
@@ -123,11 +125,27 @@ class BossRpcServer(threading.Thread):
 									if sessionid != None:
 										log.debug("bossrpc","Received sessionid: %s",sessionid)
 										self.sessions[i.fileno()] = sessionid
+										sessionid = (sessionid,)
 										newxml = self.encodeBossRpc(sessionid,methodresponse=True)
 									else:
 										log.deug("bossrpc","Invalid login")
-										newxml = self.encodeBossRpc("Permission Denied",methodresponse=True)
+										newxml = self.encodeBossRpc(("Permission Denied",),methodresponse=True)
 									i.sendall(newxml)
+							elif response[1] == "auth" and "logout" in response[0]:
+								log.debug("bossrpc","Received logout message")
+								blah = 0
+								if session.hasKey('cmdint'):
+									cmdint = session['cmdint']
+									if i.fileno() in self.sessions.keys():
+										if (session.hasKey('cmdint')):
+											cmdint = session['cmdint']
+											blah = cmdint.auth.logout(self.sessions[i.fileno()])
+										del self.sessions[i.fileno()]
+										log.debug("bossrpc","Removed session")
+									else:
+										log.debug("bossrpc","No session found to remove")
+								newxml = self.encodeBossRpc((blah,),methodresponse=True)
+								i.sendall(newxml)
 							elif response[1] in dir(self.interface) and callable(getattr(self.interface, response[1])):
 								ans = (getattr(self.interface,response[1])(*response[0]),)
 								#print ans
