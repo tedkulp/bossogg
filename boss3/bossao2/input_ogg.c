@@ -22,15 +22,21 @@
 
 #define INPUT_IMPLEMENTATION
 #import "input_plugin.h"
+#import "bossao.h"
 #import <vorbis/vorbisfile.h>
 
 static gchar *plugin_name = "ogg";
-static OggVorbis_File vorbis_file;
+//static OggVorbis_File vorbis_file;
+
+typedef struct private_ogg_t {
+   gchar *plugin_name;
+   OggVorbis_File vorbis_file;
+} private_ogg_s;
 
 /* return 1 if the plugin handles this file
    currently, this only looks at the file extension
 */
-gint input_identify (gchar *filename)
+gint _input_identify (gchar *filename)
 {
    int ret = 0;
 
@@ -47,84 +53,98 @@ gint input_identify (gchar *filename)
 }
 
 /* seek a given distance */
-gint input_seek (song_s *song, gdouble length)
+gint _input_seek (song_s *song, gdouble length)
 {
-   ov_time_seek (&vorbis_file, length);
+   private_ogg_s *p_ogg = (private_ogg_s *)song->private;
+   ov_time_seek (&p_ogg->vorbis_file, length);
    return 0;
 }
 
 /* return the total time of the file */
-gdouble input_time_total (song_s *song)
+gdouble _input_time_total (song_s *song)
 {
-   return ov_time_total (&vorbis_file, -1);
+   private_ogg_s *p_ogg = (private_ogg_s *)song->private;
+   return ov_time_total (&p_ogg->vorbis_file, -1);
 }
 
 /* return the current time
    currently broken since the read thread will be ahead of the write thread
 */
-gdouble input_time_current (song_s *song)
+gdouble _input_time_current (song_s *song)
 {
    LOG ("TODO: fix current time with threaded buffer");
-   return ov_time_tell (&vorbis_file);
+   private_ogg_s *p_ogg = (private_ogg_s *)song->private;
+   return ov_time_tell (&p_ogg->vorbis_file);
 }
 
 /* play a chunk */
-gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
+gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
 {
    gint current; 
    gchar *ret = g_malloc (BUF_SIZE);
-   *size = ov_read (&vorbis_file, ret, BUF_SIZE / 2, 0, 2, 1, &current);
+   private_ogg_s *p_ogg = (private_ogg_s *)song->private;
+   *size = ov_read (&p_ogg->vorbis_file, ret, BUF_SIZE / 2, 0, 2, 1, &current);
    
    return ret;
 }
 
 /* open the file, perform a couple checks */
-gint input_open (song_s *song, gchar *filename)
+song_s *_input_open (input_plugin_s *plugin, gchar *filename)
 {
    vorbis_info *vi = NULL;
    FILE *file;
+   private_ogg_s *p_ogg = (private_ogg_s *)g_malloc (sizeof (private_ogg_s));
+   p_ogg->plugin_name = plugin_name;
+   song_s *song = song_new (plugin, p_ogg);
 
    /* open the file on disk */
    file = fopen (filename, "r");
    if (file == NULL) {
       LOG ("Error opening '%s'", filename);
-      return -1;
+      song_free (song);
+      return NULL;
    }
    /* connect it to the ogg system */
-   if (ov_open (file, &vorbis_file, NULL, 0) < 0) {
+   if (ov_open (file, &p_ogg->vorbis_file, NULL, 0) < 0) {
       LOG ("File '%s' does not appear to be an ogg vorbis file", filename);
-      ov_clear (&vorbis_file);
-      return -2;
+      ov_clear (&p_ogg->vorbis_file);
+      song_free (song);
+      return NULL;
    }
 
-   vi = ov_info (&vorbis_file, -1);
+   vi = ov_info (&p_ogg->vorbis_file, -1);
    /* check the number of channels */
    if (vi->channels != 2) {
       LOG ("%d channels is not currently supported", vi->channels);
-      ov_clear (&vorbis_file);
-      return -3;
+      ov_clear (&p_ogg->vorbis_file);
+      song_free (song);
+      return NULL;
    }
    /* check the rate */
    if (vi->rate != 44100) {
       LOG ("A sample rate of %ld is not currently supported", vi->rate);
-      ov_clear (&vorbis_file);
-      return -4;
+      ov_clear (&p_ogg->vorbis_file);
+      song_free (song);
+      return NULL;
    }
       
-   return 0;
+   return song;
 }
 
 /* close the file */
-gint input_close (song_s *song)
+gint _input_close (song_s *song)
 {
-   ov_clear (&vorbis_file);
+   private_ogg_s *p_ogg = (private_ogg_s *)song->private;
+   ov_clear (&p_ogg->vorbis_file);
    LOG ("TODO: is this leaking files?");
+
+   song_free (song);
    
    return 0;
 }
 
 /* return the name of this plugin */
-gchar *input_name (void)
+gchar *_input_name (void)
 {
    return plugin_name;
 }

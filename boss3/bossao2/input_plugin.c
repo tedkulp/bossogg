@@ -30,42 +30,87 @@
 #import "input_plugin.h"
 
 input_plugin_s *current_plugin = NULL;
+song_s *current_song = NULL;
 
 GSList *input_list = NULL;
+
+song_s *song_new (input_plugin_s *input_plugin, void *data)
+{
+   song_s *song = g_malloc (sizeof (song_s));
+   song->input_plugin = input_plugin;
+   song->private = data;
+   return song;
+}
+
+void song_free (song_s *song)
+{
+   g_free (song->private);
+   g_free (song);
+}
 
 inline gint input_identify (gchar *filename)
 {
    return current_plugin->input_identify (filename);
 }
 
-inline gint input_seek (song_s *song, gdouble len)
+inline gint input_seek (gdouble len)
 {
-   return current_plugin->input_seek (song, len);
+   if (current_song != NULL)
+      return current_plugin->input_seek (current_song, len);
+   else {
+      LOG ("current song is NULL");
+      return -1;
+   }
 }
 
-inline gdouble input_time_total (song_s *song)
+inline gdouble input_time_total (void)
 {
-   return current_plugin->input_time_total (song);
+   if (current_song != NULL)
+      return current_plugin->input_time_total (current_song);
+   else {
+      LOG ("current song is NULL");
+      return -1;
+   }
 }
 
-inline gdouble input_time_current (song_s *song)
+inline gdouble input_time_current (void)
 {
-   return current_plugin->input_time_current (song);
+   if (current_song != NULL)
+      return current_plugin->input_time_current (current_song);
+   else {
+      LOG ("current song is NULL");
+      return -1;
+   }
 }
 
-inline gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
+inline gchar *input_play_chunk (gint *size, gchar *buf)
 {
-   return current_plugin->input_play_chunk (song, size, buf);
+   if (current_song != NULL)
+      return current_plugin->input_play_chunk (current_song, size, buf);
+   else {
+      LOG ("current song is NULL");
+      return NULL;
+   }
 }
 
-inline gint input_open (song_s *song, gchar *filename)
+inline song_s *input_open (gchar *filename)
 {
-   return current_plugin->input_open (song, filename);
+   song_s *song = current_plugin->input_open (current_plugin, filename);
+   current_song = song;
+   return song;
 }
 
-inline gint input_close (song_s *song)
+inline gint input_close (void)
 {
-   return current_plugin->input_close (song);
+   if (current_song != NULL) {
+      gint ret;
+      ret = current_plugin->input_close (current_song);
+      current_song = NULL;
+      return ret;
+   } else {
+      LOG ("already NULL");
+      return -1;
+   }
 }
 
 inline gchar *input_name (void)
@@ -126,14 +171,14 @@ input_plugin_s *input_plugin_open (gchar *filename)
 
    input_plugin_s *plugin = (input_plugin_s *)g_malloc (sizeof (input_plugin_s));
 
-   plugin->input_identify = (input_identify_f)get_symbol (lib, "input_identify");
-   plugin->input_seek = (input_seek_f)get_symbol (lib, "input_seek");
-   plugin->input_time_total = (input_time_total_f)get_symbol (lib, "input_time_total");
-   plugin->input_time_current = (input_time_current_f)get_symbol (lib, "input_time_current");
-   plugin->input_play_chunk = (input_play_chunk_f)get_symbol (lib, "input_play_chunk");
-   plugin->input_open = (input_open_f)get_symbol (lib, "input_open");
-   plugin->input_close = (input_close_f)get_symbol (lib, "input_close");
-   plugin->input_name = (input_name_f)get_symbol (lib, "input_name");
+   plugin->input_identify = (input_identify_f)get_symbol (lib, "_input_identify");
+   plugin->input_seek = (input_seek_f)get_symbol (lib, "_input_seek");
+   plugin->input_time_total = (input_time_total_f)get_symbol (lib, "_input_time_total");
+   plugin->input_time_current = (input_time_current_f)get_symbol (lib, "_input_time_current");
+   plugin->input_play_chunk = (input_play_chunk_f)get_symbol (lib, "_input_play_chunk");
+   plugin->input_open = (input_open_f)get_symbol (lib, "_input_open");
+   plugin->input_close = (input_close_f)get_symbol (lib, "_input_close");
+   plugin->input_name = (input_name_f)get_symbol (lib, "_input_name");
    plugin->lib = lib;
    plugin->name = plugin->input_name ();
 

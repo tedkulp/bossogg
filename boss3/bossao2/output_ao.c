@@ -54,7 +54,7 @@ void output_close (void)
    ao_shutdown ();
 }
 
-gint output_write_chunk (song_s *song, gchar *buffer, gint size)
+gint output_write_chunk (guchar *buffer, gint size)
 {
    ao_play (device, buffer, size);
    

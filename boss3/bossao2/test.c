@@ -31,17 +31,22 @@ int prod_pos, cons_pos;
 
 #define THBUF_SIZE 256
 
+//song_s *global_song;
+
 gchar chunks[THBUF_SIZE * BUF_SIZE];
 
 static gpointer producer (gpointer p)
 {
+   song_s *song;
    //int pos = 0;
    LOG ("producer thread started");
 
    while (1) {
-      g_mutex_lock (prod_pause_mutex);
       int size;
-      gchar *chunk = input_play_chunk (NULL, &size, &chunks[prod_pos * BUF_SIZE]);
+      //song = global_song;
+      //LOG ("hi from prod");
+      g_mutex_lock (cons_pause_mutex);
+      gchar *chunk = input_play_chunk (&size, &chunks[prod_pos * BUF_SIZE]);
       //LOG ("producing");
       //output_plugin_write_chunk_all (NULL, chunk, size);
       //thbuf_produce (thbuf, chunk, size, pos);
@@ -50,8 +55,8 @@ static gpointer producer (gpointer p)
 	 g_usleep (10000);
 	 continue;
       }
+      g_mutex_unlock (cons_pause_mutex);
       thbuf_produce (thbuf, chunk, size, prod_pos);
-      g_mutex_unlock (prod_pause_mutex);
       //if (chunk == NULL) {
       // LOG ("got a null chunk, ending thread");
       // g_thread_exit (0);
@@ -67,8 +72,9 @@ static gpointer producer (gpointer p)
 	 prod_pos = 0;
       }
       //if (cons_pos == prod_pos + 1)
-//	 g_usleep (10000);
+      // g_usleep (10000);
       //g_thread_yield ();
+      //g_usleep (100);
    }
       
    LOG ("producer thread done");
@@ -80,6 +86,7 @@ static gpointer consumer (gpointer p)
 {
    int size;
    void *data;
+   song_s *song;
    //int pos = 0;
    
    LOG ("consumer thread started");
@@ -90,6 +97,7 @@ static gpointer consumer (gpointer p)
       //LOG ("consuming");
       //data = thbuf_consume (thbuf, &size, pos);
       data = thbuf_consume (thbuf, &size, cons_pos);
+      //song = global_song;
       g_mutex_unlock (cons_pause_mutex);
       //LOG ("done consuming");
       chunk = (gchar *)data;
@@ -100,7 +108,7 @@ static gpointer consumer (gpointer p)
       /* comment this next line if you want the producer to play audio */
       //LOG ("out chunk is %d %p", size, chunk);
       if (chunk != NULL && size != 0)
-	 output_plugin_write_chunk_all (NULL, chunk, size);
+	 output_plugin_write_chunk_all (chunk, size);
       else {
 	 //g_usleep (10000);
 	 continue;
@@ -152,8 +160,9 @@ int main (int argc, char *argv[])
    input_plugin_set (plugin);
 
    output_plugin_open_all (NULL);
-   input_open (song, argv[1]);
-   LOG ("%s has %f total time", argv[1], input_time_total (song));
+   song = input_open (argv[1]);
+   //global_song = song;
+   LOG ("%s has %f total time", argv[1], input_time_total ());
    gint size;
    
    thbuf = thbuf_new (THBUF_SIZE);
@@ -183,7 +192,8 @@ int main (int argc, char *argv[])
    sleep (secs_to_sleep);
    LOG ("clearing");
    g_mutex_lock (cons_pause_mutex);
-//   g_mutex_lock (prod_pause_mutex);
+   LOG ("cons locked");
+   //g_mutex_lock (prod_pause_mutex);
    LOG ("about the thbuf_clear");
    thbuf_clear (thbuf);
    prod_pos = 0;
@@ -191,17 +201,19 @@ int main (int argc, char *argv[])
    //g_thread_yield ();
    LOG ("done clearing");
    //sleep (secs_to_sleep);
-   //g_usleep (10);
+   g_usleep (10);
    LOG ("done sleeping");
    LOG ("closing input");
-   input_close (song);
+   input_close ();
+   g_usleep (100);
    LOG ("done closing");
    plugin = input_plugin_find (argv[2]);
    input_plugin_set (plugin);
-   input_open (song, argv[2]);
+   song = input_open (argv[2]);
+   //global_song = song;
    g_usleep (100000);
-   //g_mutex_unlock (prod_pause_mutex);
    g_mutex_unlock (cons_pause_mutex);
+   //g_mutex_unlock (prod_pause_mutex);
    //sleep (secs_to_sleep);
    
 
@@ -212,7 +224,7 @@ int main (int argc, char *argv[])
 
    LOG ("threads have joined");
    
-   input_close (song);
+   input_close ();
    input_plugin_close_all ();
    output_plugin_close_all ();
    

@@ -23,7 +23,11 @@
 #import <dlfcn.h>
 
 #import "common.h"
-#import "bossao.h"
+
+typedef struct song_t {
+   struct input_plugin_t *input_plugin;
+   void *private;
+} song_s;
 
 /* each input plugin must implement these functions */
 typedef gint (*input_identify_f)(gchar *filename);
@@ -31,7 +35,7 @@ typedef gint (*input_seek_f)(song_s *song, gdouble length);
 typedef gdouble (*input_time_total_f)(song_s *song);
 typedef gdouble (*input_time_current_f)(song_s *song);
 typedef gchar * (*input_play_chunk_f)(song_s *song, gint *size, gchar *buffer);
-typedef gint (*input_open_f)(song_s *song, gchar *filename);
+typedef song_s * (*input_open_f)(struct input_plugin_t *plugin, gchar *filename);
 typedef gint (*input_close_f)(song_s *song);
 typedef gchar * (*input_name_f)(void);
 
@@ -48,6 +52,9 @@ typedef struct input_plugin_t {
    gchar *name;
 } input_plugin_s;
 
+song_s *song_new (input_plugin_s *plugin, void *data);
+void song_free (song_s *song);
+
 void input_plugin_clear (input_plugin_s *plugin);
 void input_plugin_set (input_plugin_s *plugin);
 input_plugin_s *input_plugin_open (gchar *filename);
@@ -57,10 +64,19 @@ void input_plugin_close_all (void);
 
 
 gint input_identify (gchar *filename);
-gint input_seek (song_s *song, gdouble len);
-gdouble input_time_total (song_s *song);
-gdouble input_time_current (song_s *song);
-gchar *input_play_chunk (song_s *song, gint *size, gchar *buf);
-gint input_open (song_s *song, gchar *filename);
-gint input_close (song_s *song);
-gchar *input_name ();
+gint input_seek (gdouble len);
+gdouble input_time_total (void);
+gdouble input_time_current (void);
+gchar *input_play_chunk (gint *size, gchar *buf);
+song_s *input_open (gchar *filename);
+gint input_close (void);
+gchar *input_name (void);
+
+gint _input_identify (gchar *filename);
+gint _input_seek (song_s *song, gdouble len);
+gdouble _input_time_total (song_s *song);
+gdouble _input_time_current (song_s *song);
+gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf);
+song_s *_input_open (input_plugin_s *plugin, gchar *filename);
+gint _input_close (song_s *song);
+gchar *_input_name (void);

@@ -20,9 +20,9 @@
  
 */
 
-#define INPUT_IMPLEMENTATION
-#import "input_plugin.h"
 #import <mad.h>
+#import "input_plugin.h"
+#import "bossao.h"
 
 #define DECODE_BREAK -2
 #define DECODE_CONT -1
@@ -31,18 +31,20 @@
 
 static gchar *plugin_name="mp3";
 
-static gdouble mp3_total_time = 0.0;
-static gdouble mp3_elapsed_time = 0.0;
-static gint mp3_status;
-static gint mp3_start;
-static gint mp3_frame_count;
-static FILE *mp3_file;
-static unsigned char mp3_read_buf[READ_BUFFER_SIZE];
+typedef struct private_mp3_t {
+   gdouble mp3_total_time;
+   gdouble mp3_elapsed_time;
+   gint mp3_status;
+   gint mp3_start;
+   gint mp3_frame_count;
+   FILE *mp3_file;
+   guchar mp3_read_buf[READ_BUFFER_SIZE];
 
-static struct mad_stream mp3_stream;
-static struct mad_frame mp3_frame;
-static struct mad_synth mp3_synth;
-static mad_timer_t mp3_timer;
+   struct mad_stream mp3_stream;
+   struct mad_frame mp3_frame;
+   struct mad_synth mp3_synth;
+   mad_timer_t mp3_timer;
+} private_mp3_s;
 
 struct audio_dither {
    mad_fixed_t error[3];
@@ -95,7 +97,7 @@ static signed long audio_linear_dither (guint bits, mad_fixed_t sample,
    return output >> scalebits;
 }
 
-gint input_identify (gchar *filename)
+gint _input_identify (gchar *filename)
 {
    gint ret = 0;
 
@@ -111,78 +113,84 @@ gint input_identify (gchar *filename)
    return ret;
 }
 
-gint input_seek (song_s *song, gdouble length)
+gint _input_seek (song_s *song, gdouble length)
 {
+   private_mp3_s *p_mp3 = (private_mp3_s *)song->private;
    LOG ("Unimplemented");
    return 0;
 }
 
-gdouble input_time_total (song_s *song)
+gdouble _input_time_total (song_s *song)
 {
-   return mp3_total_time;
+   private_mp3_s *p_mp3 = (private_mp3_s *)song->private;
+   return p_mp3->mp3_total_time;
 }
 
-double input_time_current (song_s *song)
+gdouble _input_time_current (song_s *song)
 {
-   double number = (double)mad_timer_count (mp3_timer, MAD_UNITS_MILLISECONDS) / 1000.0;
+   private_mp3_s *p_mp3 = (private_mp3_s *)song->private;
+   gdouble number = (double)mad_timer_count (p_mp3->mp3_timer, MAD_UNITS_MILLISECONDS) / 1000.0;
    return number;
 }
 
-static int mp3_fill_input (void)
+static gint mp3_fill_input (private_mp3_s *p_mp3)
 {
    size_t size, remaining;
    guchar *read_start;
 
-   if (mp3_stream.next_frame != NULL) {
-      remaining = mp3_stream.bufend - mp3_stream.next_frame;
-      memmove (mp3_read_buf, mp3_stream.next_frame, remaining);
-      read_start = mp3_read_buf + remaining;
+   if (p_mp3->mp3_stream.next_frame != NULL) {
+      remaining = p_mp3->mp3_stream.bufend - p_mp3->mp3_stream.next_frame;
+      memmove (p_mp3->mp3_read_buf, p_mp3->mp3_stream.next_frame, remaining);
+      read_start = p_mp3->mp3_read_buf + remaining;
       size = READ_BUFFER_SIZE - remaining;
    } else {
       size = READ_BUFFER_SIZE;
-      read_start = mp3_read_buf;
+      read_start = p_mp3->mp3_read_buf;
       remaining = 0;
    }
 
-   size = fread (read_start, 1, size, mp3_file);
+   size = fread (read_start, 1, size, p_mp3->mp3_file);
    if (size <= 0)
       return -1;
 
-   mad_stream_buffer (&mp3_stream, mp3_read_buf, size + remaining);
-   mp3_stream.error = 0;
+   mad_stream_buffer (&p_mp3->mp3_stream, p_mp3->mp3_read_buf, size + remaining);
+   p_mp3->mp3_stream.error = 0;
 
    return 0;
 }
 
-static gint mp3_decode_frame (void)
+static gint mp3_decode_frame (private_mp3_s *p_mp3)
 {
-   if (mp3_stream.buffer == NULL || mp3_stream.error == MAD_ERROR_BUFLEN) {
-      if (mp3_fill_input () < 0) {
+   if (p_mp3->mp3_stream.buffer == NULL ||
+       p_mp3->mp3_stream.error == MAD_ERROR_BUFLEN) {
+      if (mp3_fill_input (p_mp3) < 0) {
 	 return DECODE_BREAK;
       }
    }
 
-   if (mad_frame_decode (&mp3_frame, &mp3_stream)) {
-      if (MAD_RECOVERABLE (mp3_stream.error)) {
+   if (mad_frame_decode (&p_mp3->mp3_frame, &p_mp3->mp3_stream)) {
+      if (MAD_RECOVERABLE (p_mp3->mp3_stream.error)) {
 	 return DECODE_CONT;
       } else {
-	 if (mp3_stream.error == MAD_ERROR_BUFLEN) {
+	 if (p_mp3->mp3_stream.error == MAD_ERROR_BUFLEN) {
 	    return DECODE_CONT;
 	 } else {
-	    LOG ("Unrecoverable frame error: '%s'", mad_stream_errorstr (&mp3_stream));
-	    mp3_status = 1;
+	    LOG ("Unrecoverable frame error: '%s'",
+		 mad_stream_errorstr (&p_mp3->mp3_stream));
+	    p_mp3->mp3_status = 1;
 	    return DECODE_BREAK;
 	 }
       }
    }
 
-   mp3_frame_count++;
+   p_mp3->mp3_frame_count++;
 
    return DECODE_OK;
 }
 
 static gint mp3_read (song_s *song, gchar *buffer, gint *size)
 {
+   private_mp3_s *p_mp3 = (private_mp3_s *)song->private;
    static gint i;
    static gint ret;
    static struct audio_dither dither;
@@ -190,25 +198,26 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size)
    static guchar *out_ptr = buffer2;
    static guchar *out_buf_end = buffer2 + BUF_SIZE;
 
-   mad_timer_add (&mp3_timer, mp3_frame.header.duration);
-   mad_synth_frame (&mp3_synth, &mp3_frame);
-   mp3_elapsed_time = ((float)mad_timer_count (mp3_timer, MAD_UNITS_MILLISECONDS))/1000.0;
+   mad_timer_add (&p_mp3->mp3_timer, p_mp3->mp3_frame.header.duration);
+   mad_synth_frame (&p_mp3->mp3_synth, &p_mp3->mp3_frame);
+   p_mp3->mp3_elapsed_time = ((float)mad_timer_count (p_mp3->mp3_timer,
+						      MAD_UNITS_MILLISECONDS))/1000.0;
   
-   for (i = 0; i < mp3_synth.pcm.length; i++) {
+   for (i = 0; i < p_mp3->mp3_synth.pcm.length; i++) {
       gint sample;
-      sample = (gint)audio_linear_dither (16, mp3_synth.pcm.samples[0][i], &dither);
+      sample = (gint)audio_linear_dither (16, p_mp3->mp3_synth.pcm.samples[0][i], &dither);
    
       *(out_ptr++) = sample & 0xff;
       *(out_ptr++) = sample >> 8;
 
-      if (MAD_NCHANNELS (&(mp3_frame).header) == 2) {
-	 sample = (gint) audio_linear_dither (16, mp3_synth.pcm.samples[1][i], &dither);
+      if (MAD_NCHANNELS (&(p_mp3->mp3_frame).header) == 2) {
+	 sample = (gint) audio_linear_dither (16, p_mp3->mp3_synth.pcm.samples[1][i], &dither);
 
 	 *(out_ptr++) = sample & 0xff;
 	 *(out_ptr++) = sample >> 8;
       }
 
-      if (out_ptr == buffer2 + mp3_synth.pcm.length * 4) {
+      if (out_ptr == buffer2 + p_mp3->mp3_synth.pcm.length * 4) {
 	 memcpy (buffer, buffer2, BUF_SIZE);
 	 //output_plugin_write_chunk_all (NULL, buffer, BUF_SIZE);
 	 out_ptr = buffer2;
@@ -216,15 +225,16 @@ static gint mp3_read (song_s *song, gchar *buffer, gint *size)
    }
   
 
-   while ((ret = mp3_decode_frame ()) == DECODE_CONT)
+   while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT)
       ;
 
-   *size = mp3_synth.pcm.length * 4;
+   *size = p_mp3->mp3_synth.pcm.length * 4;
    return ret;
 }
 
-gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
+gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
 {
+   private_mp3_s *p_mp3 = (private_mp3_s *)song->private;
    gchar *buffer = (gchar *)g_malloc (BUF_SIZE);
    gint buf_size;
 
@@ -236,44 +246,53 @@ gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
    return buffer;
 }
 
-gint input_open (song_s *song, gchar *filename)
+song_s *_input_open (input_plugin_s *plugin, gchar *filename)
 {
    struct stat filestat;
    int ret;
+   private_mp3_s *p_mp3 = (private_mp3_s *)g_malloc (sizeof (private_mp3_s));
+   song_s *song = song_new (plugin, p_mp3);
    
-   mp3_frame_count = 0;
-   mp3_status = 0;
-   mp3_start = 0;
+   p_mp3->mp3_total_time = 0.0;
+   p_mp3->mp3_elapsed_time = 0.0;
+   p_mp3->mp3_frame_count = 0;
+   p_mp3->mp3_status = 0;
+   p_mp3->mp3_start = 0;
    
-   mad_stream_init (&mp3_stream);
-   mad_frame_init (&mp3_frame);
-   mad_timer_reset (&mp3_timer);
+   mad_stream_init (&p_mp3->mp3_stream);
+   mad_frame_init (&p_mp3->mp3_frame);
+   mad_timer_reset (&p_mp3->mp3_timer);
 
-   if ((mp3_file = fopen (filename, "r")) <= 0) {
+   if ((p_mp3->mp3_file = fopen (filename, "r")) <= 0) {
       LOG ("Problem opening file '%s'", filename);
-      return -1;
+      song_free (p_mp3);
+      return NULL;
    }
-   fstat (fileno (mp3_file), &filestat);
-   while ((ret = mp3_decode_frame ()) == DECODE_CONT)
+   fstat (fileno (p_mp3->mp3_file), &filestat);
+   while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT)
       ; /* do nothing */
 
-   mp3_total_time = (filestat.st_size * 8.0) / mp3_frame.header.bitrate;
+   p_mp3->mp3_total_time = (filestat.st_size * 8.0) /
+      p_mp3->mp3_frame.header.bitrate;
 
-   return 0;
+   return song;
 }
 
-gint input_close (song_s *song)
+gint _input_close (song_s *song)
 {
-   mad_synth_finish (&mp3_synth);
-   mad_frame_finish (&mp3_frame);
-   mad_stream_finish (&mp3_stream);
+   private_mp3_s *p_mp3 = (private_mp3_s *)song->private;
+   mad_synth_finish (&p_mp3->mp3_synth);
+   mad_frame_finish (&p_mp3->mp3_frame);
+   mad_stream_finish (&p_mp3->mp3_stream);
    
-   fclose (mp3_file);
+   fclose (p_mp3->mp3_file);
+
+   song_free (song);
    
    return 0;
 }
 
-gchar *input_name (void)
+gchar *_input_name (void)
 {
    return plugin_name;
 }

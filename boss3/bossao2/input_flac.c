@@ -22,10 +22,11 @@
 
 #define INPUT_IMPLEMENTATION
 #import "input_plugin.h"
+#import "bossao.h"
 
 static char *plugin_name="flac";
 
-gint input_identify (gchar *filename)
+gint _input_identify (gchar *filename)
 {
    int ret = 0;
 
@@ -41,37 +42,37 @@ gint input_identify (gchar *filename)
    return ret;
 }
 
-gint input_seek (song_s *song, gdouble length)
+gint _input_seek (song_s *song, gdouble length)
 {
    return 0;
 }
 
-gdouble input_time_total (song_s *song)
+gdouble _input_time_total (song_s *song)
 {
    return 0;
 }
 
-gdouble input_time_current (song_s *song)
+gdouble _input_time_current (song_s *song)
 {
    return 0;
 }
 
-gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
+gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
 {
    return NULL;
 }
 
-gint input_open (song_s *song, gchar *filename)
+song_s *_input_open (input_plugin_s *plugin, gchar *filename)
+{
+   return NULL;
+}
+
+gint _input_close (song_s *song)
 {
    return 0;
 }
 
-gint input_close (song_s *song)
-{
-   return 0;
-}
-
-gchar *input_name (void)
+gchar *_input_name (void)
 {
    return plugin_name;
 }

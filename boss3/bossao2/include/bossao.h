@@ -24,6 +24,7 @@
 
 #import "common.h"
 #import "thbuf.h"
+#import "input_plugin.h"
 
 #define VORBIS 0
 #define MP3 1
@@ -41,25 +42,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  
-   typedef struct song_t {
-      thbuf_t *thbuf;
-      double length;
-      double curtime;
-      char *filename;
-      double seek;
-      int shutdown;
-      //int pause;
-      int newfile;
-      int free;
-      int type;
-      int done;
-#ifdef HAVE_SHOUT
-      struct shout *st;
-      struct encoder_t *encoder;
-#endif
-      PyObject *cfgparser;
-   } song_s;
    
    void bossao_new(PyObject *cfgparser);
    void bossao_free(void);

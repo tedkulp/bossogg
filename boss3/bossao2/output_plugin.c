@@ -130,7 +130,7 @@ void output_plugin_close_all (void)
 }
 
 /* write the buffer to all output plugins */
-void output_plugin_write_chunk_all (song_s *song, unsigned char *buffer, gint size)
+void output_plugin_write_chunk_all (unsigned char *buffer, gint size)
 {
    GSList *list = output_list;
    output_plugin_s *plugin;
@@ -141,7 +141,7 @@ void output_plugin_write_chunk_all (song_s *song, unsigned char *buffer, gint si
    }
    do {
       plugin = (output_plugin_s *)list->data;
-      plugin->output_write_chunk (song, buffer, size);
+      plugin->output_write_chunk (buffer, size);
    } while ((list = g_slist_next (list)) != NULL);
 
    return;
