@@ -291,6 +291,8 @@ class List:
 				for i in tmp:
 					if "albumname" in i:
 						i['albumname'] = UTFstring.encode(i['albumname'])
+					if "artistname" in i:
+						i['artistname'] = UTFstring.encode(i['artistname'])
 				return tmp
 				#else:
 				#	return xmlrpclib.Fault(1, "No artistid given")
