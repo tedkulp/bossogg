@@ -180,6 +180,7 @@ static gpointer producer_thread (gpointer p)
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
 	 semaphore_p (eof_sem);
+	 eof = 0;
       }
 
       last_sample_num = sample_num;
