@@ -753,12 +753,14 @@ class Database:
 				log.debug("sqlquery", SQL, artistname, metaartist, now, now)
 				cursor.execute(SQL, artistname, int(metaartist), now, now)
 				self.getartiststatus = True
+				#log.debug("sql", "Last row id is %d", cursor.lastrowid)
 				SQL = "select artistid from artists where artistname = %s"
 				log.debug("sqlquery", SQL, artistname)
 				cursor.execute(SQL, artistname)
 				for row in cursor.fetchall():
 					log.debug("sqlresult", "Row: %s", row)
 					aid = row['artistid']
+				log.debug("sql", "aid is %d", aid)
 			#Not needed until we have genres and/or metaartists
 			else:
 				SQL = "update artists set metaflag = %s, modified_date = %s where artistid = %s"
@@ -829,6 +831,7 @@ class Database:
 		except:
 			log.debug("import", "No metadata for %s", filename)
 		if "bitrate" not in metadata or "songlength" not in metadata:
+			pass
 			#print "before set filename"
 			#self.cursong.songint.filename = filename
 			#print "before open"
