@@ -29,10 +29,10 @@
 #define INPUT_IMPLEMENTATION
 #import "input_plugin.h"
 
-input_plugin_s *current_plugin = NULL;
-song_s *current_song = NULL;
+static input_plugin_s *current_plugin = NULL;
+static song_s *current_song = NULL;
 
-GSList *input_list = NULL;
+static GSList *input_list = NULL;
 
 song_s *song_new (input_plugin_s *input_plugin, void *data)
 {
@@ -142,28 +142,10 @@ void input_plugin_set (input_plugin_s *plugin)
    current_plugin = plugin;
 }
 
-/* some error checking around g_module_symbol */
-static gpointer get_symbol (GModule *lib, gchar *name)
-{
-   gpointer symbol;
-   gboolean ret;
-   ret = g_module_symbol (lib, name, &symbol);
-   if (symbol == NULL) {
-      LOG ("Couldn't find symbol '%s' in library", name);
-   }
-   return symbol;
-}
-
 /* attempt to open the input plugin  */
 input_plugin_s *input_plugin_open (gchar *filename)
 {
-   gint module_bind = -1;
-   if (!GLIB_CHECK_VERSION (2, 4, 0)) {
-      printf ("glib < 2.4 detected, using lazy dynamic loading (may be slow)\n");
-      module_bind = G_MODULE_BIND_LAZY;
-   } else
-      module_bind = G_MODULE_BIND_LOCAL;
-   GModule *lib = g_module_open (filename, module_bind);
+   GModule *lib = g_module_open (filename, G_MODULE_BIND_LAZY);
    if (lib == NULL) {
       LOG ("Could not dlopen '%s': %s", filename, g_module_error ());
       return NULL;
@@ -201,6 +183,14 @@ void input_plugin_close (input_plugin_s *plugin)
    g_free (plugin);
 }
 
+static void input_plugin_close_all_helper (gpointer item, gpointer user_data)
+{
+   input_plugin_s *plugin = (input_plugin_s *)item;
+   LOG ("Closing module '%s'", plugin->name);
+   g_module_close (plugin->lib);
+   g_free (plugin);
+}
+
 /* close all input plugins */
 void input_plugin_close_all (void)
 {
@@ -211,12 +201,7 @@ void input_plugin_close_all (void)
       return;
    }
 
-   do {
-      plugin = (input_plugin_s *)input_list->data;
-      LOG ("Closing module '%s'", plugin->name);
-      g_module_close (plugin->lib);
-      g_free (plugin);
-   } while ((input_list = g_slist_remove (input_list, input_list->data)) != NULL);
+   g_slist_foreach (input_list, input_plugin_close_all_helper, NULL);
 }
 
 /* attempt to locate the input plugin for a given file */
@@ -231,6 +216,7 @@ input_plugin_s *input_plugin_find (char *filename)
       LOG ("Input plugin list is uninitialized");
       return NULL;
    }
+
    do {
       plugin = (input_plugin_s *)list->data;
       if (plugin->input_identify (filename)) {

@@ -24,16 +24,29 @@
 #import "bossao.h"
 #import "input_plugin.h"
 #import "output_plugin.h"
+#import "output_mod_plugin.h"
 #import "thbuf.h"
 
 #define THBUF_SIZE 256
-static gchar chunks[THBUF_SIZE * BUF_SIZE];
+//static gchar chunks[THBUF_SIZE * BUF_SIZE];
 
 static thbuf_t *thbuf;
 static GMutex *pause_mutex, *produce_mutex;
 static GThread *producer, *consumer;
 static gint producer_pos = 0;
 static gint consumer_pos = 0;
+
+/* all the modules use this function to load symbols from dynamic libs */
+gpointer get_symbol (GModule *lib, gchar *name)
+{
+   gpointer symbol;
+   gboolean ret;
+   ret = g_module_symbol (lib, name, &symbol);
+   if (symbol == NULL) {
+      LOG ("Couldn't find symbol '%s' in library", name);
+   }
+   return symbol;
+}
 
 static gpointer producer_thread (gpointer p)
 {
@@ -82,6 +95,9 @@ static gpointer consumer_thread (gpointer p)
 	 g_mutex_unlock (pause_mutex);
 	 continue;
       }
+
+      output_mod_plugin_run_all (chunk, size);
+      
       output_plugin_write_chunk_all (chunk, size);
       g_free (chunk);
       consumer_pos++;
@@ -106,6 +122,9 @@ static void init_plugins (PyObject *cfgparser)
    input_plugin_open ("input_flac.la");
 
    output_plugin_open ("output_ao.la");
+   //output_plugin_open ("output_alsa.la");
+
+   output_mod_plugin_open ("output_mod_softmix.la");
 }
 
 void bossao_thread_init (void)
@@ -198,11 +217,11 @@ gint bossao_play (gchar *filename)
    input_plugin_s *plugin = input_plugin_find (filename);
    input_plugin_set (plugin);
    input_open (filename);
-   LOG ("'%s' has %f total time", filename, input_time_total ());
    g_mutex_unlock (produce_mutex);
+   // give the produce buffer a little time to fill
    g_usleep (10000);
    g_mutex_unlock (pause_mutex);
-   
+
    return 0;
 }
 

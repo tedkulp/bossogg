@@ -29,7 +29,7 @@
 
 #import "output_plugin.h"
 
-GSList *output_list = NULL;
+static GSList *output_list = NULL;
 
 /* set the function pointers of an output plugin to NULL */
 void output_plugin_clear (output_plugin_s *plugin)
@@ -39,28 +39,10 @@ void output_plugin_clear (output_plugin_s *plugin)
    plugin->output_write_chunk = NULL;
 }
 
-/* some error checking around g_module_symbol */
-static gpointer get_symbol (GModule *lib, char *name)
-{
-   gpointer symbol;
-   gboolean ret;
-   ret = g_module_symbol (lib, name, &symbol);
-   if (symbol == NULL) {
-      LOG ("Couldn't find symbol '%s' in library", name);
-   }
-   return symbol;
-}
-
 /* attempt to open the output plugin */
 output_plugin_s *output_plugin_open (gchar *filename)
 {
-   gint module_bind = -1;
-   if (!GLIB_CHECK_VERSION (2, 4, 0)) {
-      printf ("glib < 2.4 detected, using lazy dynamic loading (may be slow)\n");
-      module_bind = G_MODULE_BIND_LAZY;
-   } else
-      module_bind = G_MODULE_BIND_LOCAL;
-   GModule *lib = g_module_open (filename, module_bind);
+   GModule *lib = g_module_open (filename, G_MODULE_BIND_LAZY);
    if (lib == NULL) {
       LOG ("Could not dlopen '%s': %s", filename, g_module_error ());
       return NULL;
@@ -87,62 +69,77 @@ output_plugin_s *output_plugin_open (gchar *filename)
 void output_plugin_close (output_plugin_s *plugin)
 {
    output_list = g_slist_remove (output_list, plugin);
-
+   LOG ("Closing module '%s'", plugin->name);
    g_module_close (plugin->lib);
    g_free (plugin);
+}
+
+static void output_plugin_open_all_helper (gpointer item, gpointer user_data)
+{
+   output_plugin_s *plugin = (output_plugin_s *)item;
+   PyObject *cfgparser = (PyObject *)user_data;
+   
+   plugin->output_open (cfgparser);
 }
 
 /* open all output plugins */
 void output_plugin_open_all (PyObject *cfgparser)
 {
-   output_plugin_s *plugin;
-   GSList *list = output_list;
-
-   if (list == NULL) {
-      LOG ("Output plugin list is uninitialized");
+   if (output_list == NULL) {
+      LOG ("Output plugin hash table is uninitialized");
       return;
    }
 
-   do {
-      plugin = (output_plugin_s *)list->data;
-      plugin->output_open (cfgparser);
-   } while ((list = g_slist_next (list)) != NULL);
+   g_slist_foreach (output_list, output_plugin_open_all_helper, cfgparser);
 
    return;
+}
+
+static void output_plugin_close_all_helper (gpointer item, gpointer user_data)
+{
+   output_plugin_s *plugin = (output_plugin_s *)item;
+   LOG ("Closing module '%s'", plugin->name);
+   g_module_close (plugin->lib);
+   g_free (plugin);
 }
 
 /* close all output plugins */
 void output_plugin_close_all (void)
 {
-   output_plugin_s *plugin;
-
    if (output_list == NULL) {
-      LOG ("Output plugin list is already empty");
+      LOG ("Output plugin hash table is already empty");
       return;
    }
 
-   do {
-      plugin = (output_plugin_s *)output_list->data;
-      LOG ("Closing module '%s'", plugin->name);
-      g_module_close (plugin->lib);
-      g_free (plugin);
-   } while ((output_list = g_slist_remove (output_list, output_list->data)) != NULL);
+   g_slist_foreach (output_list, output_plugin_close_all_helper, NULL);
+}
+
+typedef struct write_chunk_all_t {
+   guchar *buffer;
+   gint size;
+} write_chunk_all_s;
+
+static void output_plugin_write_chunk_all_helper (gpointer item, gpointer user_data)
+{
+   output_plugin_s *plugin = (output_plugin_s *)item;
+   write_chunk_all_s *s = (write_chunk_all_s *)user_data;
+
+   plugin->output_write_chunk (s->buffer, s->size);
 }
 
 /* write the buffer to all output plugins */
-void output_plugin_write_chunk_all (unsigned char *buffer, gint size)
+void output_plugin_write_chunk_all (guchar *buffer, gint size)
 {
-   GSList *list = output_list;
-   output_plugin_s *plugin;
-
-   if (list == NULL) {
-      LOG ("Output plugin list is uninitialized");
+   write_chunk_all_s s;
+   
+   if (output_list == NULL) {
+      LOG ("Output plugin hash table is uninitialized");
       return;
    }
-   do {
-      plugin = (output_plugin_s *)list->data;
-      plugin->output_write_chunk (buffer, size);
-   } while ((list = g_slist_next (list)) != NULL);
 
+   s.buffer = buffer;
+   s.size = size;
+   g_slist_foreach (output_list, output_plugin_write_chunk_all_helper, &s);
+   
    return;
 }

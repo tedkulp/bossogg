@@ -26,8 +26,8 @@
 typedef gint (*output_open_f)(PyObject *cfgparser);
 typedef void (*output_close_f)(void);
 typedef gint (*output_write_chunk_f)(guchar *buffer, gint size);
-typedef gchar * (*output_name_f)(void);
-typedef gchar * (*output_driver_name_f)(void);
+typedef gchar *(*output_name_f)(void);
+typedef gchar *(*output_driver_name_f)(void);
 
 typedef struct output_plugin_t {
    output_open_f output_open;
@@ -47,3 +47,9 @@ output_plugin_s *output_plugin_find (gchar *filename);
 void output_plugin_open_all (PyObject *cfgparser);
 void output_plugin_close_all (void);
 void output_plugin_write_chunk_all (guchar *buffer, gint size);
+
+gint output_open (PyObject *cfgparser);
+void output_close (void);
+gint output_write_chunk (guchar *buffer, gint size);
+gchar *output_name (void);
+gchar *output_driver_name (void);

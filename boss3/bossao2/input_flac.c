@@ -23,8 +23,23 @@
 #define INPUT_IMPLEMENTATION
 #import "input_plugin.h"
 #import "bossao.h"
+#import "thbuf.h"
+
+#import <FLAC/file_decoder.h>
+#import <FLAC/metadata.h>
+#import <config.h>
 
 static char *plugin_name="flac";
+
+typedef struct private_flac_t {
+   gdouble time_total;
+   gdouble time_current;
+   FLAC__FileDecoder *decoder;
+   semaphore_t *sem;
+   gushort *buffer;
+   gint buffer_size;
+   gint was_metadata;
+} private_flac_s;
 
 gint _input_identify (gchar *filename)
 {
@@ -44,31 +59,171 @@ gint _input_identify (gchar *filename)
 
 gint _input_seek (song_s *song, gdouble length)
 {
+   LOG ("unimplemented");
    return 0;
 }
 
 gdouble _input_time_total (song_s *song)
 {
-   return 0;
+   private_flac_s *p_flac = (private_flac_s *)song->private;
+   return p_flac->time_total;
 }
 
 gdouble _input_time_current (song_s *song)
 {
-   return 0;
+   private_flac_s *p_flac = (private_flac_s *)song->private;
+   return p_flac->time_current;
 }
 
 gchar *_input_play_chunk (song_s *song, gint *size, gchar *buf)
 {
-   return NULL;
+   private_flac_s *p_flac = (private_flac_s *)song->private;
+   FLAC__FileDecoder *decoder = (FLAC__FileDecoder *)p_flac->decoder;
+   p_flac->was_metadata = 1;
+   FLAC__file_decoder_process_single (decoder);
+
+   if (FLAC__file_decoder_get_state (decoder) == FLAC__FILE_DECODER_END_OF_FILE)
+      return NULL;
+
+   semaphore_p (p_flac->sem);
+   *size = p_flac->buffer_size;
+   
+   return p_flac->buffer;
+}
+
+static void error_callback (const FLAC__FileDecoder *decoder,
+			    const FLAC__StreamDecoderErrorStatus status,
+			    void *data)
+{
+   LOG ("A FLAC error has occured");
+}
+
+static void metadata_callback (const FLAC__FileDecoder *decoder,
+			       const FLAC__StreamMetadata *metadata,
+			       void *data)
+{
+   song_s *song = (song_s *)data;
+   private_flac_s *p_flac = (private_flac_s *)song->private;
+   p_flac->was_metadata = 1;
+   semaphore_v (p_flac->sem);
+}
+
+static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *decoder,
+						      const FLAC__Frame *frame,
+						      const FLAC__int32 *const buffer[],
+						      void *data)
+{
+   song_s *song = (song_s *)data;
+   private_flac_s *p_flac = (private_flac_s *)song->private;
+
+   gint size = frame->header.blocksize * frame->header.channels;
+   gint samples = frame->header.blocksize;
+   p_flac->buffer = g_malloc (sizeof (gushort) * samples * frame->header.channels);
+   p_flac->buffer_size = samples * frame->header.channels * sizeof (gushort);
+   gint c_samp, c_chan, d_samp;
+   gushort *buf = p_flac->buffer;
+   
+   for (c_samp = d_samp = 0; c_samp < frame->header.blocksize; c_samp++) {
+      for (c_chan = 0; c_chan < frame->header.channels; c_chan++, d_samp++) {
+	 buf[d_samp] = buffer[c_chan][c_samp];
+      }
+   }
+#ifdef WORDS_BIGENDIAN
+  guchar *buf_pos = buf;
+  guchar *buf_end = buf + sizeof (buf);
+  while (buf_pos < buf_end) {
+    guchar p = *buf_pos;
+    *buf_pos = *(buf_pos + 1);
+    *(buf_pos + 1) = p;
+    buf_pos += 2;
+  }
+#endif
+
+  p_flac->time_current += ((gdouble)samples) / frame->header.sample_rate;
+  p_flac->was_metadata = 0;
+  
+  semaphore_v (p_flac->sem);
+  return FLAC__STREAM_DECODER_WRITE_STATUS_CONTINUE;
 }
 
 song_s *_input_open (input_plugin_s *plugin, gchar *filename)
 {
-   return NULL;
+   private_flac_s *p_flac = (private_flac_s *)g_malloc (sizeof (private_flac_s));
+   p_flac->decoder = FLAC__file_decoder_new ();
+   p_flac->sem = semaphore_new (0);
+   FLAC__FileDecoder *decoder = p_flac->decoder;
+   song_s *song = song_new (plugin, p_flac);
+
+   FLAC__file_decoder_set_metadata_ignore (decoder, FLAC__METADATA_TYPE_STREAMINFO);
+   
+   FLAC__file_decoder_set_write_callback (decoder, write_callback);
+   FLAC__file_decoder_set_metadata_callback (decoder, metadata_callback);
+   FLAC__file_decoder_set_error_callback (decoder, error_callback);
+   FLAC__file_decoder_set_client_data (decoder, song);
+
+   FLAC__file_decoder_set_filename (decoder, filename);
+
+   FLAC__SeekableStreamDecoderState state = FLAC__file_decoder_init (decoder);
+   if (state != FLAC__FILE_DECODER_OK) {
+      printf ("Problem initializing FLAC file decoder: ");
+      if (state == FLAC__FILE_DECODER_ALREADY_INITIALIZED)
+	 printf ("already inited\n");
+      else if (state == FLAC__FILE_DECODER_SEEKABLE_STREAM_DECODER_ERROR)
+	 printf ("seekable decoder error\n");
+      else
+	 printf ("unknown error: %d\n", state);
+      FLAC__file_decoder_delete (decoder);
+      song_free (song);
+      g_free (p_flac);
+      return NULL;
+   }
+
+   FLAC__Metadata_SimpleIterator *it = FLAC__metadata_simple_iterator_new ();
+   if (!FLAC__metadata_simple_iterator_init (it, filename, 1, 0)) {
+      FLAC__metadata_simple_iterator_delete (it);
+      LOG ("Problem iterating over metadata");
+      FLAC__file_decoder_delete (decoder);
+      song_free (song);
+      g_free (p_flac);
+      return NULL;
+   }
+
+   FLAC__StreamMetadata *block = NULL;
+   do {
+      if (block)
+	 FLAC__metadata_object_delete (block);
+      block = FLAC__metadata_simple_iterator_get_block (it);
+      if (block->type == FLAC__METADATA_TYPE_STREAMINFO)
+	 break;
+   } while (FLAC__metadata_simple_iterator_next (it));
+   
+   p_flac->time_total = ((gdouble)block->data.stream_info.total_samples) /
+      block->data.stream_info.sample_rate;
+   p_flac->time_current = 0;
+
+   FLAC__metadata_object_delete (block);
+   FLAC__metadata_simple_iterator_delete (it);
+
+   // preload some decodes
+   FLAC__file_decoder_process_single (decoder);
+   FLAC__file_decoder_process_single (decoder);
+   FLAC__file_decoder_process_single (decoder);
+   FLAC__file_decoder_process_single (decoder);
+
+   return song;
 }
 
 gint _input_close (song_s *song)
 {
+   private_flac_s *p_flac = (private_flac_s *)song->private;
+   FLAC__FileDecoder *decoder = (FLAC__FileDecoder *)p_flac->decoder;
+
+   if (decoder != NULL) {
+      FLAC__file_decoder_finish (decoder);
+      FLAC__file_decoder_delete (decoder);
+      decoder= NULL;
+   }
+   
    return 0;
 }
 

@@ -62,7 +62,6 @@ void input_plugin_close (input_plugin_s *plugin);
 input_plugin_s *input_plugin_find (gchar *filename);
 void input_plugin_close_all (void);
 
-
 gint input_identify (gchar *filename);
 gint input_seek (gdouble len);
 gdouble input_time_total (void);

@@ -43,9 +43,11 @@
 extern "C" {
 #endif
    
+   gpointer get_symbol (GModule *lib, gchar *name);
+   
    void bossao_new(PyObject *cfgparser, gchar *filename);
    void bossao_free(void);
-
+   
    void bossao_join (void);
    
    void bossao_open (PyObject *cfgparser);
