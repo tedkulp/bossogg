@@ -118,11 +118,11 @@ static gpointer producer_thread (gpointer p)
 	 }
       }
       //LOG ("producing");
-      g_mutex_lock (produce_mutex);
+      //g_mutex_lock (produce_mutex);
       thbuf_produce (thbuf, cur_chunk, producer_pos);
       producer_pos++;
       producer_pos %= THBUF_SIZE;
-      g_mutex_unlock (produce_mutex);
+      //g_mutex_unlock (produce_mutex);
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
 	 semaphore_p (eof_sem);
@@ -202,7 +202,7 @@ static gpointer consumer_thread (gpointer p)
       g_usleep (0);
       if (quit) {
 	 g_usleep (10000);
-	 //thbuf_consume (thbuf, consumer_pos);
+	 thbuf_consume (thbuf, consumer_pos);
 	 LOG ("stopping thread");
 	 g_thread_exit (NULL);
       }
@@ -259,13 +259,20 @@ void bossao_unpause (void)
 
 void bossao_stop (void)
 {
+   LOG ("in stop");
    if (stopped == 0) {
       g_mutex_lock (produce_mutex);
+      LOG ("locked produce mutex");
       stopped = 1;
+   } else {
+      LOG ("already stopped");
    }
    if (paused == 0) {
       g_mutex_lock (pause_mutex);
+      LOG ("locked pause mutex");
       paused = 1;
+   } else {
+      LOG ("already paused");
    }
    thbuf_clear (thbuf);
    input_close ();
