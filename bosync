@@ -66,7 +66,7 @@ file_stats = {}
 
 options = (
 #( Short, Long, ArgName, Description ),
-( "h", "help",   "", 		"Help screen (Your reading it!)" ),
+( "h", "help",   "", 		"Help screen (You're reading it!)" ),
 ( "v", "verbose","",		"Verbose output. -v = Info  -vv = Debug" ),
 ( "D", "debug", "channels", "Enable debugging and display specified channels -D help gives help"),
 ( "",  "log-file", "filename", "Log all logging output to <filename>"),
@@ -75,14 +75,14 @@ options = (
 ( "s", "sync", "", 			"Sync directory/subdirectories with the song database "
   "(add/delete/modify)",),
 ( "d", "delete", "", 		"Delete all files specified from the database"),
-( "a", "add", "",			"All all files specified to the database"),
+( "a", "add", "",			"Add all files specified to the database"),
 ( "u", "update", "", 		"Update all song info in the DB with that from the filesystem"),
 ( "n", "noop", "", 			"Go thru all the actions but don't modify the DB"),
 ( "", "force-commit","",	"You should only use this when told to. This is used to "
 							"protect against insane things, like deleting over 50% of "
   							"DB entries."),
 ( "F", "format", "fmt/file","Specify the format of your music directory. You can "
-							"specifcy multiple formats, the first one to match will "
+							"specify multiple formats, the first one to match will "
 							"be used. You can use the following options in your "
 	  						"format string: %artist% %metaartist% %album% %song% "
 							"%track% %year% %ext% %genre%. An example of a format string is "
@@ -396,8 +396,6 @@ def usage():
 	print 
 	print_pretty_options()
 	print
-	print "Other info here"
-		 
 
 def process_args(args):
 	# Make the opts list for getopts
@@ -449,7 +447,7 @@ def process_args(args):
 					
 				for line in lines:
 					line = line.strip()
-					# Incase your wondering. [userfmt, re.comp, count]
+					# In case your wondering. [userfmt, re.comp, count]
 					config["file_regex"].append([line, 0, 0])
 			else:
 				config["file_regex"].append([arg, 0, 0])
