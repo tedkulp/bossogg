@@ -108,14 +108,14 @@ input_plugin_s *input_plugin_open (gchar *filename)
 
    input_plugin_s *plugin = (input_plugin_s *)g_malloc (sizeof (input_plugin_s));
 
-   plugin->input_identify = get_symbol (lib, "input_identify");
-   plugin->input_seek = get_symbol (lib, "input_seek");
-   plugin->input_time_total = get_symbol (lib, "input_time_total");
-   plugin->input_time_current = get_symbol (lib, "input_time_current");
-   plugin->input_play_chunk = get_symbol (lib, "input_play_chunk");
-   plugin->input_open = get_symbol (lib, "input_open");
-   plugin->input_close = get_symbol (lib, "input_close");
-   plugin->input_name = get_symbol (lib, "input_name");
+   plugin->input_identify = (input_identify_f)get_symbol (lib, "input_identify");
+   plugin->input_seek = (input_seek_f)get_symbol (lib, "input_seek");
+   plugin->input_time_total = (input_time_total_f)get_symbol (lib, "input_time_total");
+   plugin->input_time_current = (input_time_current_f)get_symbol (lib, "input_time_current");
+   plugin->input_play_chunk = (input_play_chunk_f)get_symbol (lib, "input_play_chunk");
+   plugin->input_open = (input_open_f)get_symbol (lib, "input_open");
+   plugin->input_close = (input_close_f)get_symbol (lib, "input_close");
+   plugin->input_name = (input_name_f)get_symbol (lib, "input_name");
    plugin->lib = lib;
    plugin->name = plugin->input_name ();
 

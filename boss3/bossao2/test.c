@@ -29,7 +29,9 @@ thbuf_t *thbuf;
 GMutex *cons_pause_mutex, *prod_pause_mutex;
 int prod_pos, cons_pos;
 
-#define THBUF_SIZE 256
+#define THBUF_SIZE 64
+
+gchar chunks[THBUF_SIZE * BUF_SIZE];
 
 static gpointer producer (gpointer p)
 {
@@ -39,7 +41,7 @@ static gpointer producer (gpointer p)
    while (1) {
       //g_mutex_lock (prod_pause_mutex);
       int size;
-      gchar *chunk = input_play_chunk (NULL, &size);
+      gchar *chunk = input_play_chunk (NULL, &size, &chunks[prod_pos * BUF_SIZE]);
       //LOG ("producing");
       //output_plugin_write_chunk_all (NULL, chunk, size);
       //thbuf_produce (thbuf, chunk, size, pos);
@@ -84,6 +86,7 @@ static gpointer consumer (gpointer p)
       //LOG ("consuming");
       //data = thbuf_consume (thbuf, &size, pos);
       data = thbuf_consume (thbuf, &size, cons_pos);
+      g_mutex_unlock (cons_pause_mutex);
       //LOG ("done consuming");
       chunk = (gchar *)data;
       if (chunk == NULL) {
@@ -102,7 +105,6 @@ static gpointer consumer (gpointer p)
 	 //pos = 0;
 	 cons_pos = 0;
       }
-      g_mutex_unlock (cons_pause_mutex);
       g_thread_yield ();
    }
 
@@ -167,6 +169,7 @@ int main (int argc, char *argv[])
    g_mutex_unlock (cons_pause_mutex);
 
    /* test stopping and loading a new file */
+   /*
    sleep (secs_to_sleep);
    LOG ("clearing");
    g_mutex_lock (prod_pause_mutex);
@@ -190,6 +193,7 @@ int main (int argc, char *argv[])
    g_mutex_unlock (prod_pause_mutex);
    g_mutex_unlock (cons_pause_mutex);
    sleep (secs_to_sleep);
+   */
 
    LOG ("joining..");
    

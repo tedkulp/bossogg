@@ -69,11 +69,11 @@ double input_time_current (song_s *song)
 }
 
 /* play a chunk */
-gchar *input_play_chunk (song_s *song, gint *size)
+gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
 {
    gint current; 
-   gchar *ret = g_malloc (4096);
-   *size = ov_read (&vorbis_file, ret, 4096, 0, 2, 1, &current);
+   gchar *ret = g_malloc (BUF_SIZE);
+   *size = ov_read (&vorbis_file, ret, BUF_SIZE / 2, 0, 2, 1, &current);
    
    return ret;
 }

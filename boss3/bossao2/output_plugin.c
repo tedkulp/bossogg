@@ -68,11 +68,11 @@ output_plugin_s *output_plugin_open (gchar *filename)
 
    output_plugin_s *plugin = (output_plugin_s *)g_malloc (sizeof (output_plugin_s));
 
-   plugin->output_open = get_symbol (lib, "output_open");
-   plugin->output_close = get_symbol (lib, "output_close");
-   plugin->output_write_chunk = get_symbol (lib, "output_write_chunk");
-   plugin->output_name = get_symbol (lib, "output_name");
-   plugin->output_driver_name = get_symbol (lib, "output_driver_name");
+   plugin->output_open = (output_open_f)get_symbol (lib, "output_open");
+   plugin->output_close = (output_close_f)get_symbol (lib, "output_close");
+   plugin->output_write_chunk = (output_write_chunk_f)get_symbol (lib, "output_write_chunk");
+   plugin->output_name = (output_name_f)get_symbol (lib, "output_name");
+   plugin->output_driver_name = (output_driver_name_f)get_symbol (lib, "output_driver_name");
    plugin->lib = lib;
    plugin->name = plugin->output_name ();
 

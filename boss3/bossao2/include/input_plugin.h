@@ -30,7 +30,7 @@ typedef gint (*input_identify_f)(gchar *filename);
 typedef gint (*input_seek_f)(song_s *song, gdouble length);
 typedef gdouble (*input_time_total_f)(song_s *song);
 typedef gdouble (*input_time_current_f)(song_s *song);
-typedef gchar * (*input_play_chunk_f)(song_s *song, gint *size);
+typedef gchar * (*input_play_chunk_f)(song_s *song, gint *size, gchar *buffer);
 typedef gint (*input_open_f)(song_s *song, gchar *filename);
 typedef gint (*input_close_f)(song_s *song);
 typedef gchar * (*input_name_f)(void);
