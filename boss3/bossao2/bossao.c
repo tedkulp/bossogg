@@ -140,10 +140,10 @@ static gpointer consumer_thread (gpointer p)
       if (consumer_pos == 0) {
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
       }       
-      g_mutex_unlock (pause_mutex);
       //LOG ("about to play %p of %d size", chunk->chunk, chunk->size);
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
+      g_mutex_unlock (pause_mutex);
       last_sample_num = chunk->sample_num;
       g_free (chunk->chunk);
       g_free (chunk);
