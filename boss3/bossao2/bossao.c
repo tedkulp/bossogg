@@ -89,7 +89,7 @@ static gpointer producer_thread (gpointer p)
 	 thbuf_produce (thbuf, cur_chunk, producer_pos);
 	 producer_pos++;
 	 producer_pos %= THBUF_SIZE;
-	 g_usleep (100000);
+	 g_usleep (10000);
 	 continue;
       }
       //LOG ("producing");
