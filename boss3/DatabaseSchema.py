@@ -25,7 +25,7 @@ log = bosslog.getLogger()
 
 class DatabaseSchema:
 
-	version = 5
+	version = 6
 	filename = ""
 	schema = """
 ------------------------------------------------------------
@@ -50,6 +50,8 @@ CREATE TABLE albums (
 	albumname	VARCHAR(100),
 	year		INT,
 	userid		INT,
+	frontcover	VARCHAR(255),
+	backcover	VARCHAR(255),
 	create_date	TIMESTAMP,
 	modified_date	TIMESTAMP
 );
@@ -70,6 +72,7 @@ CREATE TABLE songs (
 	flags		INT,
 	composer	VARCHAR(255),
 	weight		NUMERIC(9,12),
+	trm		VARCHAR(255),
 	create_date	TIMESTAMP,
 	modified_date	TIMESTAMP
 );
@@ -141,6 +144,8 @@ CREATE INDEX albums_albumid_idx ON albums(albumid);
 CREATE INDEX albums_albumname_idx ON albums(albumname);
 
 CREATE INDEX songs_songid_idx ON songs(songid);
+CREATE INDEX songs_artistid_idx ON songs(artistid);
+CREATE INDEX songs_albumid_idx ON songs(albumid);
 CREATE INDEX songs_songname_idx ON songs(songname);
 CREATE INDEX songs_metaartistid_idx ON songs(metaartistid);
 
@@ -152,7 +157,7 @@ CREATE INDEX genre_data_songid_idx ON genre_data(songid);
 --Set some default values
 ------------------------------------------------------------
 
-INSERT INTO VERSION (versionnumber) VALUES (5);
+INSERT INTO VERSION (versionnumber) VALUES (6);
 INSERT INTO USERS (username, password, authlevel) VALUES ('blah', 'blah', (256+128+64+32+16+8+4+2+1));
 """
 	def create(self, filename=None):
@@ -288,4 +293,82 @@ INSERT INTO USERS (username, password, authlevel) VALUES ('blah', 'blah', (256+1
 			dbh.runScript("INSERT INTO songs (songid, artistid, metaartistid, albumid, tracknum, songname, filename, year, filesize, songlength, bitrate, timesplayed, flags, weight, create_date, modified_date) SELECT songid, artistid, metaartistid, albumid, tracknum, songname, filename, year, filesize, songlength, bitrate, timesplayed, flags, weight, create_date, modified_date from songs_tmpstuff")
 			dbh.runScript("DROP TABLE songs_tmpstuff")
 			dbh.runScript("UPDATE version set versionnumber = 5")
+			dbh.runScript("VACUUM")
+		if curver == 5:
+			try:
+				dbh.runScript("DROP TABLE albums_tmpstuff")
+				dbh.runScript("DROP TABLE songs_tmpstuff")
+			except Exception:
+				pass
+			dbh.runScript("""CREATE TABLE albums_tmpstuff (
+	albumid		INTEGER PRIMARY KEY,
+	artistid	INT,
+	albumname	VARCHAR(100),
+	year		INT,
+	userid		INT,
+	create_date	TIMESTAMP,
+	modified_date	TIMESTAMP
+)""")
+			dbh.runScript("INSERT INTO albums_tmpstuff SELECT * from albums")
+			dbh.runScript("DROP TABLE albums")
+			dbh.runScript("""CREATE TABLE albums (
+	albumid		INTEGER PRIMARY KEY,
+	artistid	INT,
+	albumname	VARCHAR(100),
+	year		INT,
+	userid		INT,
+	frontcover	VARCHAR(255),
+	backcover	VARCHAR(255),
+	create_date	TIMESTAMP,
+	modified_date	TIMESTAMP
+)""")
+			dbh.runScript("INSERT INTO albums (albumid, artistid, albumname, year, userid, create_date, modified_date) SELECT albumid, artistid, albumname, year, userid, create_date, modified_date FROM albums_tmpstuff")
+			dbh.runScript("DROP TABLE albums_tmpstuff")
+			dbh.runScript("""CREATE TABLE songs_tmpstuff (
+	songid		INTEGER PRIMARY KEY,
+	artistid	INT,
+	metaartistid	INT,
+	albumid		INT,
+	tracknum	INT,
+	songname	VARCHAR(255),
+	filename	VARCHAR(255),
+	year		INT,
+	filesize	INT,
+	songlength	INT,
+	bitrate		INT,
+	timesplayed	INT,
+	flags		INT,
+	composer	VARCHAR(255),
+	weight		NUMERIC(9,12),
+	create_date	TIMESTAMP,
+	modified_date	TIMESTAMP
+)""")
+			dbh.runScript("INSERT INTO songs_tmpstuff SELECT * from songs")
+			dbh.runScript("DROP TABLE songs")
+			dbh.runScript("""CREATE TABLE songs (
+	songid		INTEGER PRIMARY KEY,
+	artistid	INT,
+	metaartistid	INT,
+	albumid		INT,
+	tracknum	INT,
+	songname	VARCHAR(255),
+	filename	VARCHAR(255),
+	year		INT,
+	filesize	INT,
+	songlength	INT,
+	bitrate		INT,
+	timesplayed	INT,
+	flags		INT,
+	composer	VARCHAR(255),
+	weight		NUMERIC(9,12),
+	trm		VARCHAR(255),
+	create_date	TIMESTAMP,
+	modified_date	TIMESTAMP
+)""")
+			dbh.runScript("INSERT INTO songs (songid, artistid, metaartistid, albumid, tracknum, songname, filename, year, filesize, songlength, bitrate, timesplayed, flags, weight, create_date, modified_date) SELECT songid, artistid, metaartistid, albumid, tracknum, songname, filename, year, filesize, songlength, bitrate, timesplayed, flags, weight, create_date, modified_date from songs_tmpstuff")
+			dbh.runScript("DROP TABLE songs_tmpstuff")
+			dbh.runScript("UPDATE version set versionnumber = 6")
+			dbh.runScript("CREATE INDEX songs_albumid_idx ON songs(albumid)")
+			dbh.runScript("CREATE INDEX songs_artistid_idx ON songs(artistid)")
+			dbh.runScript("VACUUM")
 # vim:ts=8 sw=8 noet

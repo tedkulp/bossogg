@@ -262,20 +262,21 @@ class List:
 				return tmp
 			elif (cmd == "albums"):
 				tmp = None
-				if (len(args)>0):
+				#if (len(args)>0):
+				try:
+					tmp = cmdint.list.albums(args[0],args[1])
+				except Exception:
 					try:
-						tmp = cmdint.list.albums(args[0],args[1])
+						tmp = cmdint.list.albums(args[0])
 					except Exception:
-						try:
-							tmp = cmdint.list.albums(args[0])
-						except Exception:
-							return xmlrpclib.Fault(2, "Error in given parameters")
-					for i in tmp:
-						if "albumname" in i:
-							i['albumname'] = UTFstring.encode(i['albumname'])
-					return tmp
-				else:
-					return xmlrpclib.Fault(1, "No artistid given")
+						#return xmlrpclib.Fault(2, "Error in given parameters")
+						tmp = cmdint.list.albums()
+				for i in tmp:
+					if "albumname" in i:
+						i['albumname'] = UTFstring.encode(i['albumname'])
+				return tmp
+				#else:
+				#	return xmlrpclib.Fault(1, "No artistid given")
 			elif (cmd == "songs"):
 				tmp = None
 				if (len(args) > 1):

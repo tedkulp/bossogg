@@ -121,7 +121,7 @@ class List:
 		#print self.dbh.listArtists(anchor)
 		return self.dbh.listArtists(anchor)
 
-	def albums(self, artistid, anchor=""):
+	def albums(self, artistid=None, anchor=""):
 		"""
 		Returns a list of all the albums in the
 		database for the given artistid.  Anchor

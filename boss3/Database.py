@@ -288,29 +288,36 @@ class Database:
 				result.append({"artistid":row['artistid'],"artistname":row['artistname']})
 		return result
 
-	def listAlbums(self, artistid, anchor=""):
+	def listAlbums(self, artistid=None, anchor=""):
 		result = []
 		cursor = self.conn.cursor()
 		#Look for real albums first and stick them at the top of the list
 
-		SQL = "SELECT albumid, albumname, year FROM albums WHERE artistid = %i " % artistid
-		if (anchor != None and anchor != ""):
-			SQL += "AND albumname like '%s%%' " % anchor.replace("'", "\\'")
-		SQL += "ORDER BY year, lower(albumname) ASC"
-		cursor.execute(SQL)
-		for row in cursor.fetchall():
-			log.debug("sqlresult", "Row: %s", row)
-			result.append({"albumid":row['albumid'],"albumname":row['albumname'],"albumyear":row['year'],"metaartist":0})
-		#Now look for metaartist related albums
-		SQL = "SELECT a.albumid, a.albumname, a.year FROM albums a INNER JOIN songs s ON a.albumid = s.albumid WHERE s.metaartistid = %s " % artistid
+		if artistid != None:
+			SQL = "SELECT albumid, albumname, year FROM albums WHERE artistid = %i " % artistid
+			if (anchor != None and anchor != ""):
+				SQL += "AND albumname like '%s%%' " % anchor.replace("'", "\\'")
+			SQL += "ORDER BY year, lower(albumname) ASC"
+			cursor.execute(SQL)
+			for row in cursor.fetchall():
+				log.debug("sqlresult", "Row: %s", row)
+				result.append({"albumid":row['albumid'],"albumname":row['albumname'],"albumyear":row['year'],"metaartist":0})
+			#Now look for metaartist related albums
+			SQL = "SELECT a.albumid, a.albumname, a.year FROM albums a INNER JOIN songs s ON a.albumid = s.albumid WHERE s.metaartistid = %s " % artistid
 
-		if (anchor != None and anchor != ""):
-			SQL += "AND a.albumname like '%s%%' " % anchor.replace("'", "\\'")
-		SQL += "ORDER BY a.year, a.albumname ASC"
-		cursor.execute(SQL)
-		for row in cursor.fetchall():
-			log.debug("sqlresult", "Row: %s", row)
-			result.append({"albumid":row['a.albumid'],"albumname":row['a.albumname'],"albumyear":row['a.year'],"metaartist":1})
+			if (anchor != None and anchor != ""):
+				SQL += "AND a.albumname like '%s%%' " % anchor.replace("'", "\\'")
+			SQL += "ORDER BY a.year, lower(a.albumname) ASC"
+			cursor.execute(SQL)
+			for row in cursor.fetchall():
+				log.debug("sqlresult", "Row: %s", row)
+				result.append({"albumid":row['a.albumid'],"albumname":row['a.albumname'],"albumyear":row['a.year'],"metaartist":1})
+		else:
+			SQL = "SELECT ar.artistid, ar.artistname, a.albumid, a.albumname, a.year FROM albums a INNER JOIN artists ar ON ar.artistid = a.artistid ORDER BY ar.artistname, a.year, lower(a.albumname) ASC"
+			cursor.execute(SQL)
+			for row in cursor.fetchall():
+				log.debug("sqlresult", "Row: %s", row)
+				result.append({"artistid":row['ar.artistid'],"artistname":row['ar.artistname'],"albumid":row['a.albumid'],"albumname":row['a.albumname'],"albumyear":row['a.year'],"metaartist":0})
 		return result
 
 	def listPlaylists(self):

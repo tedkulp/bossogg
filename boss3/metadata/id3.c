@@ -43,8 +43,8 @@ text_tag_s *new_text_tag ()
   text_tag->songname = NULL;
   text_tag->albumname = NULL;
   text_tag->genre = NULL;
-  text_tag->year = -1;
-  text_tag->track = -1;
+  text_tag->year = 0;
+  text_tag->track = 0;
   text_tag->bitrate = -1;
   text_tag->frequency = -1;
   text_tag->songlength = -1.0;
