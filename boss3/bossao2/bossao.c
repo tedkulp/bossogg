@@ -274,8 +274,11 @@ void bossao_stop (void)
    } else {
       LOG ("already paused");
    }
+   LOG ("about to clear");
    thbuf_clear (thbuf);
+   LOG ("cleared");
    input_close ();
+   LOG ("closed");
    consumer_pos = 0;
    producer_pos = 0;
 }
