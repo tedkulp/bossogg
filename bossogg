@@ -159,7 +159,7 @@ def runBoss():
 
 	#gstsong.gstreamer_init()
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "?vdp:D:u:", ["verbose","help","detach","pidfile=", "debug=", "user="])
+		opts, args = getopt.getopt(sys.argv[1:], "?vdp:D:u:", ["verbose","help","detach","pidfile=", "debug=", "user=", "log-file="])
 	except getopt.GetoptError:
 		usage()
 		sys.exit(2)
@@ -193,7 +193,9 @@ def runBoss():
 		if o in ("-d", "--detach"):
 			session['loglevel'] = 0
 			detach = 1
-
+		if o in ("--log-file", ):
+			log.logtofile(a)
+			log.debug("misc", "Logging output to %s", a)
 		if o in ("-?", "--help"):
 			usage()
 			sys.exit(2)
