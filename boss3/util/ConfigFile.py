@@ -254,6 +254,7 @@ version: %(conf_file_version)s
 		print str(self.cfgparser.options())
 
 	def load(self):
+		self.setDefaults()
 		self.cfgparser.read(self.filename)
 
 	def save(self):
