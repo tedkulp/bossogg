@@ -58,7 +58,7 @@ class Database:
 	getalbumstatus = False
 	getsongstatus = False
 	#cursong = None
-	import_db = None
+	import_cursor = None
 
 	class _Cursor(sqlite.Cursor):
 		nolock=0
@@ -135,6 +135,7 @@ class Database:
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		i = 0
+		self.songcache = []
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "Row: %s", row)
 			self.songcache.append({"filename":row['songs.filename'], "songid":row['songs.songid'], "songlength":row['songs.songlength'], "flags":row['songs.flags']})
@@ -582,7 +583,7 @@ class Database:
 		sid = -1
 		songname = string.strip(songname)
 		filename = string.strip(filename)
-		cursor = self.import_db["cursor"]
+		cursor = self.import_cursor
 
 		statinfo = os.stat(filename)
 		now = time.time()
@@ -616,15 +617,9 @@ class Database:
 		self.i_songcache = {}
 		#self.cursong = session['xinelib'].createSong()
 		#self.cursong.songInit()
-		if self.import_db:
-			log.error("There is already a connection to the DB for importing. Is there another one running?")
-			raise
-
-		self.import_db = {}
-		self.import_db["connection"] = sqlite.connect(db=self.dbname, mode=0755, autocommit=False)
-		self.import_db["cursor"] = self.import_db["connection"].cursor()
-		#self.import_db["cursor"].nolock=1
-		cursor=self.import_db["cursor"]
+		self.import_cursor = self.conn.cursor()
+		self.import_cursor.nolock=1
+		cursor=self.import_cursor
 
 		SQL = "select artistname,artistid from artists"
 		log.debug("sqlquery", SQL)
@@ -645,19 +640,26 @@ class Database:
 		for row in cursor.fetchall():
 			log.debug("sqlresult", "%s", row)
 			self.i_songcache[row[0]] = int(row[1])
+
+		SQL = "begin transaction"
+		log.debug("sqlquery", "%s", SQL)
+		cursor.execute(SQL)
+
 			
 	def importEnd(self):
 		log.debug("funcs", "Database.importEnd()")
-		cursor = self.import_db["cursor"]
+		cursor = self.import_cursor
 		SQL = "DELETE FROM albums WHERE albumid NOT IN (SELECT albumid FROM songs)"
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
 		SQL = "DELETE FROM artists WHERE artistid NOT IN (SELECT artistid FROM songs) and artistid NOT IN (SELECT metaartistid as artistid FROM songs)"
 		log.debug("sqlquery", "query:%s", SQL)
 		cursor.execute(SQL)
-		self.import_db["connection"].commit()
-		self.import_db["connection"].close()
-		self.import_db = None
+
+		SQL = "commit transaction"
+		log.debug("sqlquery", "%s", SQL)
+		cursor.execute(SQL)
+		
 		log.debug("import", "Import complete, loading song cache (before %d)", len(self.songcache))
 		try:
 			self.loadSongCache()
@@ -667,9 +669,9 @@ class Database:
 
 	def importCancel(self):
 		log.debug("funcs", "Database.importCancel()")
-		self.import_db["connection"].rollback()
-		self.import_db["connection"].close()
-		self.import_db = None
+		SQL = "rollback transaction"
+		log.debug("sqlquery", "%s", SQL)
+		self.import_cursor.execute(SQL)
 
 	def importUpload(self, filename, songdata):
 		log.debug("funcs", "Database.importUpload()")
@@ -707,7 +709,7 @@ class Database:
 
 	def importDelete(self, arrayofsongs):
 		log.debug("funcs", "Database.importDelete()")
-		cursor = self.import_db["cursor"]
+		cursor = self.import_cursor
 		result = 0
 		for somesong in arrayofsongs:
 			somesong = self.checkBinary(somesong)
@@ -771,13 +773,13 @@ class Database:
 	def _getGenre(self, genrename):
 		gid = -1
 		genrename = string.strip(genrename)
-		cursor = self.import_db["cursor"]
+		cursor = self.import_cursor
 		if genrename not in self.genrecache:
 			SQL = "select genreid from genres where genrename = %s"
 			log.debug("sqlquery", SQL, genrename)
 			cursor.execute(SQL, genrename)
 			for row in cursor.fetchall():
-				log.debug("sqlresult", row)
+				log.debug("sqlresult", "%s", row)
 				gid = row['genreid']
 			if gid == -1:
 				now = time.time()
@@ -806,7 +808,7 @@ class Database:
 		log.debug("funcs", "Database._getArtist()")
 		aid = -1
 		artistname = string.strip(artistname)
-		cursor = self.import_db["cursor"]
+		cursor = self.import_cursor
 		#See if this artist is already in the cache
 		if artistname not in self.artistcache:
 			#SQL = "select artistid from artists where artistname = %s"
@@ -842,7 +844,7 @@ class Database:
 	def _getAlbum(self, albumname, artistid, year):
 		tid = -1
 		albumname = string.strip(albumname)
-		cursor = self.import_db["cursor"]
+		cursor = self.import_cursor
 		#See if this album is already in the cache
 		if str(str(artistid) + albumname) not in self.albumcache:
 			#SQL = "select albumid from albums where albumname = %s"
@@ -875,7 +877,7 @@ class Database:
 		sid = -1
 		songname = string.strip(songname)
 		filename = string.strip(filename)
-		cursor = self.import_db["cursor"]
+		cursor = self.import_cursor
 		#SQL = "select songid from songs where filename = %s"
 		#log.debug("sqlquery", SQL, filename)
 		#cursor.execute(SQL, filename)
