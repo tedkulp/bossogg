@@ -208,10 +208,11 @@ static gpointer consumer_thread (gpointer p)
 	 }
       }
 
-      if (chunk->eof)
-	 input_plugin_set_end_of_file ();
+      // if (chunk->eof)
+      // input_plugin_set_end_of_file ();
       
       //LOG ("about to play %p of %d size buf size is %d", chunk->chunk, chunk->size, size);
+      /*
       if (size == 1 || last_sample_num == chunk->sample_num) {
 	 LOG ("avoided weirdness: %d", size);
 	 if (chunk->eof) {
@@ -227,7 +228,8 @@ static gpointer consumer_thread (gpointer p)
 	 g_free (chunk->chunk);
 	 g_free (chunk);
 	 continue;
-      }
+	 }
+      */
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
       last_sample_num = chunk->sample_num;

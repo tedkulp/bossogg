@@ -139,11 +139,11 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
 
    //gint size = frame->header.blocksize * frame->header.channels;
    gint samples = frame->header.blocksize;
+   gint size = samples * frame->header.channels * sizeof (gshort);
+   p_flac->buffer_size = size;
    if (samples) {
-      p_flac->buffer_size = samples * frame->header.channels * sizeof (gshort);
       p_flac->buffer = g_malloc (sizeof (gshort) * samples * frame->header.channels);
    } else {
-      p_flac->buffer_size = 0;
       return FLAC__STREAM_DECODER_WRITE_STATUS_ABORT;
    }
    gint c_samp, c_chan, d_samp;
@@ -156,7 +156,7 @@ static FLAC__StreamDecoderWriteStatus write_callback (const FLAC__FileDecoder *d
    }
 #ifdef WORDS_BIGENDIAN
   gchar *buf_pos = buf; 
-  gchar *buf_end = buf + sizeof (buf);
+  gchar *buf_end = buf + size;
   while (buf_pos < buf_end) {
     gchar p = *buf_pos;
     *buf_pos = *(buf_pos + 1);
