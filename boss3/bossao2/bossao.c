@@ -130,8 +130,6 @@ static gpointer consumer_thread (gpointer p)
       }
       //LOG ("consuming");
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
-      consumer_pos++;
-      consumer_pos %= THBUF_SIZE;
       if (chunk == NULL) {
 	 LOG ("got a NULL struct");
 	 g_usleep (100000);
@@ -142,6 +140,8 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (100000);
 	 continue;
       }
+      consumer_pos++;
+      consumer_pos %= THBUF_SIZE;
       if (chunk->chunk == NULL) {
 	 LOG ("got a NULL chunk %d %d", (gint)last_sample_num, (gint)input_plugin_samples_total ());
 	 last_sample_num = chunk->sample_num;
