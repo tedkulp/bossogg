@@ -135,13 +135,13 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (100000);
 	 continue;
       }
+      consumer_pos++;
+      consumer_pos %= THBUF_SIZE;
       if (chunk->eof) {
 	 LOG ("got EOF");
 	 g_usleep (100000);
 	 continue;
       }
-      consumer_pos++;
-      consumer_pos %= THBUF_SIZE;
       if (chunk->chunk == NULL) {
 	 LOG ("got a NULL chunk %d %d", (gint)last_sample_num, (gint)input_plugin_samples_total ());
 	 last_sample_num = chunk->sample_num;
