@@ -115,6 +115,7 @@ static gpointer consumer_thread (gpointer p)
    
    while (1) {
       if (chunk != (chunk_s *)0x1) {
+	 /*
 	 if (last_sample_num == input_plugin_samples_total ()) {
 	    LOG ("Same sample num twice, end of song?");
 	    input_plugin_set_end_of_file ();
@@ -124,7 +125,8 @@ static gpointer consumer_thread (gpointer p)
 	    LOG ("consumed after end");
 	    g_usleep (10000);
 	    continue;
-	 }
+	    }
+	 */
       }
       //LOG ("consuming");
       chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
