@@ -247,14 +247,20 @@ class Database:
 			result['albumyear'] = row['al.year']
 		return result
 
-	def getSongInfo(self, songid):
-		result = {}
+	def getSongInfo(self, songids):
+		resultarray = []
 		cursor = self.conn.cursor()
-		SQL = "select al.artistid, s.albumid, s.songname, s.bitrate, s.songlength, s.tracknum, s.filesize, s.timesplayed, s.filename, s.weight, s.flags, al.albumname, al.year, a.artistname, s.metaartistid, m.artistname from songs s inner join albums al on s.albumid = al.albumid inner join artists a on s.artistid = a.artistid outer left join artists m on m.artistid = s.metaartistid where songid = %s"
-		cursor.execute(SQL, songid)
+		whereclause = ""
+		for songid in songids:
+			whereclause += "songid = %s or " % songid
+		whereclause = whereclause[:-4]
+		SQL = "select s.songid, al.artistid, s.albumid, s.songname, s.bitrate, s.songlength, s.tracknum, s.filesize, s.timesplayed, s.filename, s.weight, s.flags, al.albumname, al.year, a.artistname, s.metaartistid, m.artistname from songs s inner join albums al on s.albumid = al.albumid inner join artists a on s.artistid = a.artistid outer left join artists m on m.artistid = s.metaartistid where %s" % whereclause
+		cursor.execute(SQL)
+		count = 0;
 		for row in cursor.fetchall():
+			result = {}
 			log.debug("sqlresult", "XRow: %s", row)
-			result['songid'] = songid
+			result['songid'] = row['s.songid']
 			result['albumid'] = row['s.albumid']
 			result['artistid'] = row['al.artistid']
 			result['artistname'] = row['a.artistname']
@@ -272,27 +278,41 @@ class Database:
 			if row['m.artistname'] != None and row['s.metaartistid'] != '-1':
 				result['metaartistid'] = row['s.metaartistid']
 				result['metaartistname'] = row['m.artistname']
+			result['index'] = count
+			count += 1
+			resultarray.append(result)
 
-		SQL = "select count(*) as thecount, type, songid from history where songid = %s group by songid, type order by songid"
-		result['timesstarted'] = result['timesplayed'] = result['timesrequested'] = 0
-		cursor.execute(SQL, songid)
-		for row in cursor.fetchall():
-			log.debug("sqlresult", "Row: %s", row)
-			if row['type'] == "s":
-				result['timesstarted'] = int(row['thecount'])
-			elif row['type'] == "p":
-				result['timesplayed'] = int(row['thecount'])
-			elif row['type'] == "q":
-				result['timesrequested'] = int(row['thecount'])
+		for result in resultarray:
+			songid = result['songid']
 
-		if result['timesplayed'] and result['timesstarted']:
-			result['percentagecompleted'] = (float(result['timesplayed']) / float(result['timesstarted'])) * float(100)
-		else:
-			result['percentagecompleted'] = float(0)
+			SQL = "select count(*) as thecount, type, songid from history where songid = %s group by songid, type order by songid"
+			result['timesstarted'] = result['timesplayed'] = result['timesrequested'] = 0
+			cursor.execute(SQL, songid)
+			for row in cursor.fetchall():
+				log.debug("sqlresult", "Row: %s", row)
+				if row['type'] == "s":
+					result['timesstarted'] = int(row['thecount'])
+				elif row['type'] == "p":
+					result['timesplayed'] = int(row['thecount'])
+				elif row['type'] == "q":
+					result['timesrequested'] = int(row['thecount'])
 
-		result['genres'] = self.fillSongGenreHash(songid)
+			if result['timesplayed'] and result['timesstarted']:
+				result['percentagecompleted'] = (float(result['timesplayed']) / float(result['timesstarted'])) * float(100)
+			else:
+				result['percentagecompleted'] = float(0)
 
-		return result
+			result['genres'] = self.fillSongGenreHash(songid)
+
+		#Now sort them in the original order...
+		oldresultarray = resultarray
+		resultarray = []
+		for songid in songids:
+			for i in oldresultarray:
+				if i['songid'] == songid:
+					resultarray.append(i)
+					break
+		return resultarray
 
 	def authUser(self, username = "", password = ""):
 		result = None

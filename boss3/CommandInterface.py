@@ -236,9 +236,9 @@ class List:
 		  * percentagecompleted - float
 		"""
 		if songid is None:
-			return self.dbh.getSongInfo(self.player.songid)
+			return self.dbh.getSongInfo([self.player.songid])[0]
 		else:
-			return self.dbh.getSongInfo(songid)
+			return self.dbh.getSongInfo([songid])[0]
 	
 	def queue(self, showall=False, numtoreturn=-1):
 		"""
@@ -283,17 +283,19 @@ class List:
 		result = []
 		count = 0
 		theids = self.player.songqueue.getSongIDs()
-		for i in theids:
-			if numtoreturn > -1 and count >= numtoreturn:
-				break
-			if showall is True:
-				info = self.songinfo(i)
-			else:
-				info = {}
-				info['songid'] = i
-			info['index'] = count
-			result.append(info)
-			count += 1
+		if showall is True:
+			result = self.dbh.getSongInfo(theids)
+		else:
+			count = 0
+			for i in theids:
+				result.append({'songid':i})
+				result.append({'index':count})
+				count += 1
+
+		if numtoreturn > -1:
+			if numtoreturn < len(result):
+				result = result[:numtoreturn]
+		
 		return result
 	
 	def top(self, type="artists", numbertoget=10):
