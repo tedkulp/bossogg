@@ -152,7 +152,11 @@ inline song_s *input_open (input_plugin_s *plugin, gchar *filename)
 {
    g_static_mutex_lock (&current_mutex);
    song_s *song = plugin->input_open (plugin, filename);
-   song->filename = filename;
+   if (song == NULL) {
+      LOG ("The \'%s\' plugin returned a NULL song", plugin->name);
+   } else {
+      song->filename = filename;
+   }
    current_song = song;
    g_static_mutex_unlock (&current_mutex);
 

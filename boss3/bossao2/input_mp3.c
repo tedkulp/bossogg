@@ -316,6 +316,8 @@ static gint64 get_total_samples (private_mp3_s *mp3)
 	 ;
       if (ret == DECODE_SKIP)
 	 skip = 1;
+      if (ret == DECODE_BREAK)
+	 return -1;
       while ((ret = mp3_decode_frame (mp3)) == DECODE_CONT)
 	 ;
       if (ret == DECODE_BREAK)
@@ -366,7 +368,11 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
       return NULL;
    }
 
-   get_total_samples (p_mp3);
+   if (get_total_samples (p_mp3) < 0) {
+      LOG ("Problem parsing header in \'%s\'", filename);
+      song_free (song);
+      return NULL;
+   }
    while (1) {
       skip = 0;
       while ((ret = decode_next_frame_header (p_mp3)) == DECODE_CONT)
@@ -375,8 +381,11 @@ song_s *_input_open (input_plugin_s *plugin, gchar *filename)
 	 skip = 1;
       while ((ret = mp3_decode_frame (p_mp3)) == DECODE_CONT)
 	 ;
-      if (ret == DECODE_BREAK)
+      if (ret == DECODE_BREAK) {
+	 LOG ("Problem parsing file \'%s\'", filename);
+	 song_free (song);
 	 return NULL;
+      }
       if (!skip && ret == DECODE_OK)
 	 break;
    }
