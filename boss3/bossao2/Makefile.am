@@ -48,7 +48,7 @@ output_alsa_la_LDFLAGS=-module -lasound
 #output_alsa_la_LDLIBS=-lasound
 output_alsa_la_SOURCES=output_alsa.c
 
-output_shout_la_LDFLAGS=-module -lshout
+output_shout_la_LDFLAGS=-module -lshout -lvorbisenc
 #output_shout_la_LDLIBS=-lshout
 output_shout_la_SOURCES=output_shout.c
 
