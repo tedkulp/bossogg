@@ -59,6 +59,16 @@ gpointer get_symbol (GModule *lib, gchar *name)
    return symbol;
 }
 
+static void buffer_free_callback (void *p)
+{
+   chunk_s *chunk = (chunk_s *)p;
+   if (chunk) {
+      if (chunk->chunk)
+	 g_free (chunk->chunk);
+      g_free (chunk);
+   }
+}
+
 static gpointer producer_thread (gpointer p)
 {
    gint size;
@@ -67,7 +77,8 @@ static gpointer producer_thread (gpointer p)
    gint64 sample_num = 0;
    gint64 last_sample_num = -1;
    gchar eof = -1;
-
+   void *buf_p = NULL;
+   
    g_usleep (10000);
 
    while (1) {
@@ -103,9 +114,11 @@ static gpointer producer_thread (gpointer p)
 	 g_thread_exit (NULL);
       }
       //LOG ("producing");
+      if (p)
       g_mutex_lock (produce_mutex);
-      thbuf_produce (thbuf, cur_chunk);
+      buf_p = (void *)thbuf_produce (thbuf, cur_chunk);
       g_mutex_unlock (produce_mutex);
+      buffer_free_callback (buf_p);
       //g_usleep (0);
       if (eof) {
 	 LOG ("chunk was eof, waiting on semaphore");
@@ -161,7 +174,7 @@ static gpointer consumer_thread (gpointer p)
 	 g_usleep (10000);
 	 if (!chunk->eof) {
 	    LOG ("wasn't eof");
-	    g_free (chunk);
+	    //g_free (chunk);
 	    continue;
 	 } 
       }
@@ -169,7 +182,7 @@ static gpointer consumer_thread (gpointer p)
 	 LOG ("got EOF");
 	 input_plugin_set_end_of_file ();
 	 g_usleep (10000);
-	 g_free (chunk);
+	 //g_free (chunk);
 	 continue;
       }
 
@@ -177,10 +190,12 @@ static gpointer consumer_thread (gpointer p)
       output_mod_plugin_run_all (chunk->chunk, chunk->size);
       //g_mutex_lock (pause_mutex);
       output_plugin_write_chunk_all (chunk->chunk, chunk->size);
+      //semaphore_p (thbuf->full);
+      semaphore_v (thbuf->empty);
       //g_mutex_unlock (pause_mutex);
       last_sample_num = chunk->sample_num;
-      g_free (chunk->chunk);
-      g_free (chunk);
+      //g_free (chunk->chunk);
+      //g_free (chunk);
       // give up the scheduler
       //g_usleep (0);
       if (quit) {
@@ -278,6 +293,7 @@ void bossao_new (PyObject *cfgparser, gchar *filename)
    pause_mutex = g_mutex_new ();
    produce_mutex = g_mutex_new ();
    thbuf = thbuf_new (THBUF_SIZE);
+   thbuf_set_free_callback (thbuf, buffer_free_callback);
 
    if (filename != NULL)
       bossao_play (filename);

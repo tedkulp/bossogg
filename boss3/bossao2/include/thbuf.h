@@ -25,13 +25,16 @@ typedef struct {
    gint count;
 } thbuf_sem_t;
 
-typedef struct {
+typedef void (*thbuf_free_callback_t)(void *p);
+
+typedef struct thbuf_ {
    gint size;
    gint produce_pos;
    gint consume_pos;
    void **buf;
    GMutex *mutex;
    thbuf_sem_t *empty, *full;
+   thbuf_free_callback_t free_cb;
 } thbuf_t;
 
 #define THBUF_SIZE 256
@@ -45,6 +48,7 @@ gint thbuf_produce (thbuf_t *buf, void *p);
 void *thbuf_consume (thbuf_t *buf, gint *count);
 gint thbuf_current_size (thbuf_t *buf);
 void thbuf_clear (thbuf_t *buf);
+void thbuf_set_free_callback (thbuf_t *thbuf, thbuf_free_callback_t cb);
 
 thbuf_t *thbuf_new (size_t size);
 void thbuf_free (thbuf_t *buf);

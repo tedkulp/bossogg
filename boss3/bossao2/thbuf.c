@@ -94,6 +94,7 @@ gint thbuf_produce (thbuf_t *buf, void *p)
 
    // critical section, add the data to the thbuf 
    g_mutex_lock (buf->mutex);
+   void *old = buf->buf[buf->produce_pos];
    buf->buf[buf->produce_pos] = p;
    buf->produce_pos = (buf->produce_pos + 1) % THBUF_SIZE;
    //LOG ("added %p size %d to %d", buf->buf[pos], buf->chunk_size[pos], pos);
@@ -102,7 +103,8 @@ gint thbuf_produce (thbuf_t *buf, void *p)
    // perform a v operation on full, makes more full 
    semaphore_v (buf->full);  
    
-   return buf->full->count;
+   //return buf->full->count;
+   return (gint)old;
 }
 
 /* consumption function
@@ -116,7 +118,7 @@ void *thbuf_consume (thbuf_t *buf, gint *count)
    //critical section, remove the data from the thbuf 
    g_mutex_lock (buf->mutex);
    void *ret = buf->buf[buf->consume_pos];
-   buf->buf[buf->consume_pos] = NULL;
+   //buf->buf[buf->consume_pos] = NULL;
    if (count != NULL)
       *count = buf->full->count;
    buf->consume_pos = (buf->consume_pos + 1) % THBUF_SIZE;
@@ -124,7 +126,7 @@ void *thbuf_consume (thbuf_t *buf, gint *count)
    g_mutex_unlock (buf->mutex);
 
    // perform a v operation on empty, makes more empty
-   semaphore_v (buf->empty);
+   //semaphore_v (buf->empty);
 
    return ret;
 }
@@ -183,13 +185,18 @@ void thbuf_clear (thbuf_t *buf)
    
    while (1) {
       void *p = thbuf_consume_no_lock (buf, &count);
-      if (p != NULL)
-	 g_free (p);
+      if (buf->free_cb)
+	 buf->free_cb (p);
       if (!count)
 	 break;
    }
 
    g_mutex_unlock (buf->mutex);
+}
+
+void thbuf_set_free_callback (thbuf_t *thbuf, thbuf_free_callback_t cb)
+{
+   thbuf->free_cb = cb;
 }
 
 /* allocate a new thbuf */
@@ -200,7 +207,8 @@ thbuf_t *thbuf_new (size_t size)
 
    buf = (thbuf_t *)g_malloc (sizeof (thbuf_t));
    buf->size = size;
-
+   buf->free_cb = NULL;
+   
    // allocate size members of p's and the size array 
    buf->buf = (void **)g_malloc (sizeof (void *) * (size) + 1);
 
@@ -222,6 +230,7 @@ thbuf_t *thbuf_new (size_t size)
 /* free a thbuf */
 void thbuf_free (thbuf_t *buf)
 {
+   thbuf_clear (buf);
    g_mutex_free (buf->mutex);
    semaphore_free (buf->empty);
    semaphore_free (buf->full);
