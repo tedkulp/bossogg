@@ -26,12 +26,8 @@ typedef struct {
 } thbuf_sem_t;
 
 typedef struct {
+   gint size;
    void **buf;
-   size_t *chunk_size;
-   //size_t head, tail;
-   //size_t size;
-   //int full, empty, paused;
-   //int readers, writers, waiting;
    GMutex *mutex;
    thbuf_sem_t *empty, *full;
 } thbuf_t;
@@ -43,14 +39,9 @@ void semaphore_free (thbuf_sem_t *semaphore);
 int semaphore_p (thbuf_sem_t *semaphore);
 int semaphore_v (thbuf_sem_t *sempahore);
 
-int thbuf_produce (thbuf_t *buf, void *p, size_t size, int pos);
-void *thbuf_consume (thbuf_t *buf, size_t *size, int pos);
+int thbuf_produce (thbuf_t *buf, void *p, int pos);
+void *thbuf_consume (thbuf_t *buf, int pos);
 void thbuf_clear (thbuf_t *buf);
-
-//void thbuf_read_lock (thbuf_s *buf, int d);
-//void thbuf_read_unlock (thbuf_s *buf);
-//void thbuf_write_lock (thbuf_s *buf, int d);
-//void thbuf_write_unlock (thbuf_s *buf);
 
 thbuf_t *thbuf_new (size_t size);
 void thbuf_free (thbuf_t *buf);

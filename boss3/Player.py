@@ -90,15 +90,14 @@ class Player(threading.Thread):
 
 	def setVolume(self, volume):
 		if self.mixer is not None:
-			print "vol net yet implemented"
-			#bossao.bossao_setvol(self.mixer, volume)
+			bossao.bossao_setvol(volume)
 
 	def getStatus(self):
 		result = {}
 		result['queuemd5sum'] = self.songqueue.getmd5sum()
 		result['status'] = self.state
 		if self.mixer is not None:
-			result['volume'] = bossao.bossao_getvol(self.mixer)
+			result['volume'] = bossao.bossao_getvol()
 		else:
 			result['volume'] = 0
 		#if self.songqueue.usingqueue == True:
@@ -207,6 +206,7 @@ class Player(threading.Thread):
 		self.configfile = session['cfg']
 		self.lib = bossao.bossao_new(self.configfile, None)
 		#self.mixer = bossao.bossao_new_mixer()
+		self.mixer = 1
 		self.playedflag = 0
 
 		if self.dbh.getSongCacheSize() == 0:

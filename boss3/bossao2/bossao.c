@@ -27,7 +27,13 @@
 #import "output_mod_plugin.h"
 #import "thbuf.h"
 
-//static gchar chunks[THBUF_SIZE * BUF_SIZE];
+typedef struct chunk_t {
+   guchar *chunk;
+   gint64 sample_num;
+   gint size;
+} chunk_s;
+
+//static chunk_s chunks[THBUF_SIZE];
 
 static thbuf_t *thbuf;
 static GMutex *pause_mutex, *produce_mutex;
@@ -35,7 +41,10 @@ static GThread *producer, *consumer;
 static gint producer_pos;
 static gint consumer_pos;
 static gint paused = 1;
+static gint stopped = 1;
 static gint quit;
+
+static output_mod_plugin_s *softmix_plugin;
 
 /* all the modules use this function to load symbols from dynamic libs */
 gpointer get_symbol (GModule *lib, gchar *name)
@@ -52,34 +61,27 @@ gpointer get_symbol (GModule *lib, gchar *name)
 static gpointer producer_thread (gpointer p)
 {
    gint size;
-   gchar *chunk;
+   guchar *chunk;
+   chunk_s *cur_chunk;
 
    while (1) {
       chunk = input_play_chunk (&size, NULL/*&chunks[producer_pos * BUF_SIZE]*/);
+      cur_chunk = (chunk_s *)g_malloc (sizeof (chunk_s));
+      cur_chunk->chunk = chunk;
+      cur_chunk->size = size;
       if (quit) {
-	 LOG ("quitting");
-	 thbuf_produce (thbuf, chunk, size, producer_pos);
-	 g_mutex_unlock (pause_mutex);
+	 g_usleep (10000);
+	 thbuf_produce (thbuf, cur_chunk, producer_pos);
 	 g_thread_exit (NULL);
       }
       g_mutex_lock (produce_mutex);
-      //LOG ("about to produce %d", producer_pos);
       if (chunk == NULL) {
 	 LOG ("got a NULL chunk...");
 	 g_mutex_unlock (produce_mutex);
 	 g_usleep (100000);
-	 if (quit) {
-	    LOG ("quitting");
-	    g_thread_exit (NULL);
-	 }
 	 continue;
       }
-      if (quit) {
-	 LOG ("quitting");
-	 g_mutex_unlock (pause_mutex);
-	 g_thread_exit (NULL);
-      }
-      thbuf_produce (thbuf, chunk, size, producer_pos);
+      thbuf_produce (thbuf, cur_chunk, producer_pos);
       //LOG ("produced %p, %d %d %d", chunk, size, producer_pos, consumer_pos);
       producer_pos++;
       producer_pos %= THBUF_SIZE;
@@ -95,22 +97,15 @@ static gpointer producer_thread (gpointer p)
 
 static gpointer consumer_thread (gpointer p)
 {
-   gint size;
-   void *data;
-   gchar *chunk;
+   chunk_s *chunk = NULL;;
 
    while (1) {
       g_mutex_lock (pause_mutex);
-      data = thbuf_consume (thbuf, &size, consumer_pos);
-      chunk = (gchar *)data;
-      if (chunk == NULL || size == 0) {
-	 LOG ("got a NULL chunk %p %d...", chunk, size);
+      chunk = (chunk_s *)thbuf_consume (thbuf, consumer_pos);
+      if (chunk == NULL) {
+	 LOG ("got a NULL chunk %p...", chunk);
 	 g_mutex_unlock (pause_mutex);
-	 g_usleep (10000);
-	 if (quit) {
-	    LOG ("quitting");
-	    g_thread_exit (NULL);
-	 }
+	 g_usleep (100000);
 	 continue;
       }
 
@@ -120,17 +115,18 @@ static gpointer consumer_thread (gpointer p)
 	 LOG ("consumer thread wrapped %d %d", producer_pos, consumer_pos);
       }      
       g_mutex_unlock (pause_mutex);
-      output_mod_plugin_run_all (chunk, size);
-      output_plugin_write_chunk_all (chunk, size);
+      //LOG ("about to play %p of %d size", chunk->chunk, chunk->size);
+      output_mod_plugin_run_all (chunk->chunk, chunk->size);
+      output_plugin_write_chunk_all (chunk->chunk, chunk->size);
+      g_free (chunk->chunk);
       g_free (chunk);
+      g_usleep (0);
       if (quit) {
-	 LOG ("quitting");
-	 thbuf_consume (thbuf, &size, consumer_pos);
-	 g_mutex_unlock (produce_mutex);
+	 g_usleep (10000);
+	 thbuf_consume (thbuf, consumer_pos);
 	 g_thread_exit (NULL);
       }
       // give up the context in case the producer needs to get ahead
-      g_usleep (0);
    }
 
    return NULL;
@@ -148,7 +144,7 @@ static void init_plugins (PyObject *cfgparser)
    output_plugin_open ("output_shout.la");
    //output_plugin_open ("output_alsa.la");
 
-   output_mod_plugin_open ("output_mod_softmix.la");
+   softmix_plugin = output_mod_plugin_open ("output_mod_softmix.la");
 }
 
 static void bossao_thread_init (void)
@@ -183,7 +179,10 @@ void bossao_unpause (void)
 
 void bossao_stop (void)
 {
-   g_mutex_lock (produce_mutex);
+   if (stopped == 0) {
+      g_mutex_lock (produce_mutex);
+      stopped = 1;
+   }
    if (paused == 0) {
       g_mutex_lock (pause_mutex);
       paused = 1;
@@ -240,8 +239,8 @@ void bossao_free (void)
    input_plugin_close_all ();
    output_plugin_close_all ();
 
-   //g_mutex_free (pause_mutex);
-   //g_mutex_free (produce_mutex);
+   g_mutex_free (pause_mutex);
+   g_mutex_free (produce_mutex);
    thbuf_free (thbuf);
 }
 
@@ -251,6 +250,7 @@ gint bossao_play (gchar *filename)
    input_plugin_s *plugin = input_plugin_find (filename);
    input_plugin_set (plugin);
    input_open (plugin, filename);
+   stopped = 0;
    g_mutex_unlock (produce_mutex);
    // give the produce buffer a little time to fill
    g_usleep (10000);
@@ -301,4 +301,20 @@ gchar *bossao_filename (void)
 gint bossao_finished (void)
 {
    return input_finished ();
+}
+
+gint bossao_getvol (void)
+{
+   gint *vol;
+   if (softmix_plugin != NULL) {
+      softmix_plugin->output_mod_get_config (NULL, NULL, &vol);
+   }
+   return *vol;
+}
+
+void bossao_setvol (int vol)
+{
+   if (softmix_plugin != NULL) {
+      softmix_plugin->output_mod_configure (0, 0, &vol);
+   }
 }

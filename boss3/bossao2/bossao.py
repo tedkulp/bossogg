@@ -59,3 +59,7 @@ bossao_time_current = _bossao.bossao_time_current
 
 bossao_filename = _bossao.bossao_filename
 
+bossao_getvol = _bossao.bossao_getvol
+
+bossao_setvol = _bossao.bossao_setvol
+

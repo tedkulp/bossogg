@@ -223,7 +223,7 @@ void output_close (void)
 gint output_write_chunk (guchar *buffer, gint size)
 {
    gint i, result, ret, eos = 0;
-   gchar *buf = (gchar *)buffer;
+   guchar *buf = buffer;
    static gint samples_in_page = 0;
    static gint prev_granulepos = 0;
    rate = 44100;

@@ -50,6 +50,7 @@ output_mod_plugin_s *output_mod_plugin_open (gchar *filename)
    plugin->output_mod_description = (output_mod_description_f)get_symbol (lib,
 									  "output_mod_description");
    plugin->output_mod_configure = (output_mod_configure_f)get_symbol (lib, "output_mod_configure");
+   plugin->output_mod_get_config = (output_mod_get_config_f)get_symbol (lib, "output_mod_get_config");
    plugin->output_mod_run = (output_mod_run_f)get_symbol (lib, "output_mod_run");
    plugin->output_mod_name = (output_mod_name_f)get_symbol (lib, "output_mod_name");
    plugin->description = plugin->output_mod_description ();

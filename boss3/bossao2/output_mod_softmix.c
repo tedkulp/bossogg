@@ -25,6 +25,9 @@
 static gchar *plugin_name = "softmix";
 static gchar *description = "Software Mixing";
 
+static int volume = 100;
+static gdouble percent = 1.0;
+
 gchar *output_mod_name (void)
 {
    return plugin_name;
@@ -37,17 +40,32 @@ gchar *output_mod_description (void)
 
 void output_mod_configure (gint arg1, gint arg2, gpointer user_data)
 {
-   
+   if (user_data != NULL) {
+      volume = *(gint *)user_data;
+   }
+   percent = (gdouble)volume / 100.0;
+   LOG ("set volume to %d %f", volume, percent);
 }
 
-void output_mod_run (gchar *chunk, gint size)
+void output_mod_get_config (gint *arg1, gint *arg2, gpointer *user_data)
+{
+   if (user_data != NULL)
+      *user_data = &volume;
+   if (arg1 != NULL)
+      *arg1 = 0;
+   if (arg2 != NULL)
+      *arg2 = 0;
+}
+
+void output_mod_run (guchar *chunk, gint size)
 {
    gint i;
 
    // software mixing is easy, all you have to do is multiply
    // the samples by the volume percentage you want
-   gshort *p = chunk;
+   //gshort *p = chunk;
+   guchar *p = chunk;
    for (i = 0; i < size / 2; i++) {
-      //*p++ *= 0.0 ;
+      *p++ *= percent;
    }
 }

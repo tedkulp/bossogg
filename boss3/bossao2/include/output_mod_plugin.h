@@ -26,12 +26,14 @@
 typedef gchar *(*output_mod_name_f)(void);
 typedef gchar *(*output_mod_description_f)(void);
 typedef void (*output_mod_configure_f)(gint arg1, gint arg2, gpointer user_data);
+typedef void (*output_mod_get_config_f)(gint *arg1, gint *arg2, gpointer *user_data);
 typedef void (*output_mod_run_f)(guchar *chunk, gint size);
 
 typedef struct output_mod_plugin_t {
    output_mod_name_f output_mod_name;
    output_mod_description_f output_mod_description;
    output_mod_configure_f output_mod_configure;
+   output_mod_get_config_f output_mod_get_config;
    output_mod_run_f output_mod_run;
    GModule *lib;
    gchar *description;
@@ -47,4 +49,5 @@ void output_mod_plugin_configure_all (gint arg1, gint arg2, gpointer user_data);
 gchar *output_mod_name (void);
 gchar *output_mod_description (void);
 void output_mod_configure (gint arg1, gint arg2, gpointer user_data);
-//void output_mod_run (guchar *chunk, gint size);
+void output_mod_get_config (gint *arg1, gint *arg2, gpointer *user_data);
+void output_mod_run (guchar *chunk, gint size);
