@@ -256,7 +256,6 @@ class Database:
 		whereclause = whereclause[:-4]
 		SQL = "select s.songid, al.artistid, s.albumid, s.songname, s.bitrate, s.songlength, s.tracknum, s.filesize, s.timesplayed, s.filename, s.weight, s.flags, al.albumname, al.year, a.artistname, s.metaartistid, m.artistname from songs s inner join albums al on s.albumid = al.albumid inner join artists a on s.artistid = a.artistid outer left join artists m on m.artistid = s.metaartistid where %s" % whereclause
 		cursor.execute(SQL)
-		count = 0;
 		for row in cursor.fetchall():
 			result = {}
 			log.debug("sqlresult", "XRow: %s", row)
@@ -278,8 +277,6 @@ class Database:
 			if row['m.artistname'] != None and row['s.metaartistid'] != '-1':
 				result['metaartistid'] = row['s.metaartistid']
 				result['metaartistname'] = row['m.artistname']
-			result['index'] = count
-			count += 1
 			resultarray.append(result)
 
 		for result in resultarray:
@@ -307,10 +304,13 @@ class Database:
 		#Now sort them in the original order...
 		oldresultarray = resultarray
 		resultarray = []
+		count = 0;
 		for songid in songids:
 			for i in oldresultarray:
 				if i['songid'] == songid:
+					i['index'] = count
 					resultarray.append(i)
+					count += 1
 					break
 		return resultarray
 
