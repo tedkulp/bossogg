@@ -55,17 +55,12 @@ void input_plugin_close (input_plugin_s *plugin);
 input_plugin_s *input_plugin_find (gchar *filename);
 void input_plugin_close_all (void);
 
-/* define INPUT_IMPLEMENTATION for plugin development so these symbols are
-   declared properly. these symbols should only appear as extern function pointers
-   for the users of the plugins (bossao.c) */
-#ifndef INPUT_IMPLEMENTATION
-/* function pointers for the currently used plugin */
-extern input_identify_f input_identify;
-extern input_seek_f input_seek;
-extern input_time_total_f input_time_total;
-extern input_time_current_f input_time_current;
-extern input_play_chunk_f input_play_chunk;
-extern input_open_f input_open;
-extern input_close_f input_close;
-extern input_name_f input_name;
-#endif
+
+gint input_identify (gchar *filename);
+gint input_seek (song_s *song, gdouble len);
+gdouble input_time_total (song_s *song);
+gdouble input_time_current (song_s *song);
+gchar *input_play_chunk (song_s *song, gint *size, gchar *buf);
+gint input_open (song_s *song, gchar *filename);
+gint input_close (song_s *song);
+gchar *input_name ();

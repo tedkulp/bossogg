@@ -53,10 +53,10 @@ static unsigned long prng (unsigned long state) {
    return (state * 0x0019660dL + 0x3c6ef35fL) & 0xffffffffL;
 }
 
-static signed long audio_linear_dither (unsigned int bits, mad_fixed_t sample,
+static signed long audio_linear_dither (guint bits, mad_fixed_t sample,
 					struct audio_dither *dither)
 {
-   unsigned int scalebits;
+   guint scalebits;
    mad_fixed_t output, mask, random;
 
    enum {
@@ -95,14 +95,14 @@ static signed long audio_linear_dither (unsigned int bits, mad_fixed_t sample,
    return output >> scalebits;
 }
 
-int input_identify (gchar *filename)
+gint input_identify (gchar *filename)
 {
-   int ret = 0;
+   gint ret = 0;
 
    if (filename == NULL)
       return 0;
 
-   int len = strlen (filename);
+   gint len = strlen (filename);
    gchar *ptr = &filename[len - 3];
 
    if (strncmp (ptr, "mp3", 3) == 0)
@@ -111,13 +111,13 @@ int input_identify (gchar *filename)
    return ret;
 }
 
-int input_seek (song_s *song, gdouble length)
+gint input_seek (song_s *song, gdouble length)
 {
    LOG ("Unimplemented");
    return 0;
 }
 
-double input_time_total (song_s *song)
+gdouble input_time_total (song_s *song)
 {
    return mp3_total_time;
 }
@@ -131,7 +131,7 @@ double input_time_current (song_s *song)
 static int mp3_fill_input (void)
 {
    size_t size, remaining;
-   unsigned char *read_start;
+   guchar *read_start;
 
    if (mp3_stream.next_frame != NULL) {
       remaining = mp3_stream.bufend - mp3_stream.next_frame;
@@ -154,7 +154,7 @@ static int mp3_fill_input (void)
    return 0;
 }
 
-static int mp3_decode_frame (void)
+static gint mp3_decode_frame (void)
 {
    if (mp3_stream.buffer == NULL || mp3_stream.error == MAD_ERROR_BUFLEN) {
       if (mp3_fill_input () < 0) {
@@ -181,28 +181,28 @@ static int mp3_decode_frame (void)
    return DECODE_OK;
 }
 
-static int mp3_read (song_s *song, char *buffer, int *size)
+static gint mp3_read (song_s *song, gchar *buffer, gint *size)
 {
-   static int i;
-   static int ret;
+   static gint i;
+   static gint ret;
    static struct audio_dither dither;
-   static unsigned char buffer2[BUF_SIZE];
-   static unsigned char *out_ptr = buffer2;
-   static unsigned char *out_buf_end = buffer2 + BUF_SIZE;
+   static guchar buffer2[BUF_SIZE];
+   static guchar *out_ptr = buffer2;
+   static guchar *out_buf_end = buffer2 + BUF_SIZE;
 
    mad_timer_add (&mp3_timer, mp3_frame.header.duration);
    mad_synth_frame (&mp3_synth, &mp3_frame);
    mp3_elapsed_time = ((float)mad_timer_count (mp3_timer, MAD_UNITS_MILLISECONDS))/1000.0;
   
    for (i = 0; i < mp3_synth.pcm.length; i++) {
-      signed int sample;
-      sample = (signed int)audio_linear_dither (16, mp3_synth.pcm.samples[0][i], &dither);
+      gint sample;
+      sample = (gint)audio_linear_dither (16, mp3_synth.pcm.samples[0][i], &dither);
    
       *(out_ptr++) = sample & 0xff;
       *(out_ptr++) = sample >> 8;
 
       if (MAD_NCHANNELS (&(mp3_frame).header) == 2) {
-	 sample = (signed int) audio_linear_dither (16, mp3_synth.pcm.samples[1][i], &dither);
+	 sample = (gint) audio_linear_dither (16, mp3_synth.pcm.samples[1][i], &dither);
 
 	 *(out_ptr++) = sample & 0xff;
 	 *(out_ptr++) = sample >> 8;
@@ -223,7 +223,7 @@ static int mp3_read (song_s *song, char *buffer, int *size)
    return ret;
 }
 
-char *input_play_chunk (song_s *song, gint *size)
+gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
 {
    gchar *buffer = (gchar *)g_malloc (BUF_SIZE);
    gint buf_size;
@@ -236,7 +236,7 @@ char *input_play_chunk (song_s *song, gint *size)
    return buffer;
 }
 
-int input_open (song_s *song, gchar *filename)
+gint input_open (song_s *song, gchar *filename)
 {
    struct stat filestat;
    int ret;
@@ -262,7 +262,7 @@ int input_open (song_s *song, gchar *filename)
    return 0;
 }
 
-int input_close (song_s *song)
+gint input_close (song_s *song)
 {
    mad_synth_finish (&mp3_synth);
    mad_frame_finish (&mp3_frame);

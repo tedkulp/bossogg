@@ -29,17 +29,49 @@
 #define INPUT_IMPLEMENTATION
 #import "input_plugin.h"
 
-/* function pointers for the currently used plugin */
-input_identify_f input_identify = NULL;
-input_seek_f input_seek = NULL;
-input_time_total_f input_time_total = NULL;
-input_time_current_f input_time_current = NULL;
-input_play_chunk_f input_play_chunk = NULL;
-input_open_f input_open = NULL;
-input_close_f input_close = NULL;
-input_name_f input_name = NULL;
+input_plugin_s *current_plugin = NULL;
 
 GSList *input_list = NULL;
+
+inline gint input_identify (gchar *filename)
+{
+   return current_plugin->input_identify (filename);
+}
+
+inline gint input_seek (song_s *song, gdouble len)
+{
+   return current_plugin->input_seek (song, len);
+}
+
+inline gdouble input_time_total (song_s *song)
+{
+   return current_plugin->input_time_total (song);
+}
+
+inline gdouble input_time_current (song_s *song)
+{
+   return current_plugin->input_time_current (song);
+}
+
+inline gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
+{
+   return current_plugin->input_play_chunk (song, size, buf);
+}
+
+inline gint input_open (song_s *song, gchar *filename)
+{
+   return current_plugin->input_open (song, filename);
+}
+
+inline gint input_close (song_s *song)
+{
+   return current_plugin->input_close (song);
+}
+
+inline gchar *input_name (void)
+{
+   return current_plugin->input_name ();
+}
 
 /* if plugin is NULL, clear the currently used plugin
    else, clear the given plugin */
@@ -55,28 +87,14 @@ void input_plugin_clear (input_plugin_s *plugin)
       plugin->input_close = NULL;
       plugin->input_name = NULL;
    } else {
-      input_identify = NULL;
-      input_seek = NULL;
-      input_time_total = NULL;
-      input_time_current = NULL;
-      input_play_chunk = NULL;
-      input_open = NULL;
-      input_close = NULL;
-      input_name = NULL;
+      current_plugin = NULL;
    }
 }
 
 /* set the currently used plugin to the given plugin */
 void input_plugin_set (input_plugin_s *plugin)
 {
-   input_identify = plugin->input_identify;
-   input_seek = plugin->input_seek;
-   input_time_total = plugin->input_time_total;
-   input_time_current = plugin->input_time_current;
-   input_play_chunk = plugin->input_play_chunk;
-   input_open = plugin->input_open;
-   input_close = plugin->input_close;
-   input_name = plugin->input_name;
+   current_plugin = plugin;
 }
 
 /* some error checking around g_module_symbol */
@@ -120,6 +138,9 @@ input_plugin_s *input_plugin_open (gchar *filename)
    plugin->name = plugin->input_name ();
 
    input_list = g_slist_append (input_list, plugin);
+
+   if (current_plugin == NULL)
+      current_plugin = plugin;
 
    LOG ("Input plugin '%s', for '%s' files loaded", filename, plugin->name);
    

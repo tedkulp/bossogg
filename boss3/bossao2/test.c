@@ -51,6 +51,7 @@ static gpointer producer (gpointer p)
 	 continue;
       }
       thbuf_produce (thbuf, chunk, size, prod_pos);
+      g_mutex_unlock (prod_pause_mutex);
       //if (chunk == NULL) {
       // LOG ("got a null chunk, ending thread");
       // g_thread_exit (0);
@@ -67,8 +68,7 @@ static gpointer producer (gpointer p)
       }
       //if (cons_pos == prod_pos + 1)
 //	 g_usleep (10000);
-      g_mutex_unlock (prod_pause_mutex);
-      g_thread_yield ();
+      //g_thread_yield ();
    }
       
    LOG ("producer thread done");
@@ -102,7 +102,7 @@ static gpointer consumer (gpointer p)
       if (chunk != NULL && size != 0)
 	 output_plugin_write_chunk_all (NULL, chunk, size);
       else {
-	 g_usleep (10000);
+	 //g_usleep (10000);
 	 continue;
       }
       g_free (chunk);
@@ -114,7 +114,7 @@ static gpointer consumer (gpointer p)
 	 //pos = 0;
 	 cons_pos = 0;
       }
-      g_thread_yield ();
+      //g_thread_yield ();
    }
 
    LOG ("consumer thread done, got to %d", cons_pos);
@@ -182,8 +182,8 @@ int main (int argc, char *argv[])
    
    sleep (secs_to_sleep);
    LOG ("clearing");
-   g_mutex_lock (prod_pause_mutex);
    g_mutex_lock (cons_pause_mutex);
+//   g_mutex_lock (prod_pause_mutex);
    LOG ("about the thbuf_clear");
    thbuf_clear (thbuf);
    prod_pos = 0;
@@ -200,7 +200,7 @@ int main (int argc, char *argv[])
    input_plugin_set (plugin);
    input_open (song, argv[2]);
    g_usleep (100000);
-   g_mutex_unlock (prod_pause_mutex);
+   //g_mutex_unlock (prod_pause_mutex);
    g_mutex_unlock (cons_pause_mutex);
    //sleep (secs_to_sleep);
    

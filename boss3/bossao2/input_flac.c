@@ -25,7 +25,7 @@
 
 static char *plugin_name="flac";
 
-int input_identify (gchar *filename)
+gint input_identify (gchar *filename)
 {
    int ret = 0;
 
@@ -41,32 +41,32 @@ int input_identify (gchar *filename)
    return ret;
 }
 
-int input_seek (song_s *song, gdouble length)
+gint input_seek (song_s *song, gdouble length)
 {
    return 0;
 }
 
-double input_time_total (song_s *song)
+gdouble input_time_total (song_s *song)
 {
    return 0;
 }
 
-double input_time_current (song_s *song)
+gdouble input_time_current (song_s *song)
 {
    return 0;
 }
 
-char *input_play_chunk (song_s *song, gint size)
+gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
 {
    return NULL;
 }
 
-int input_open (song_s *song, gchar *filename)
+gint input_open (song_s *song, gchar *filename)
 {
    return 0;
 }
 
-int input_close (song_s *song)
+gint input_close (song_s *song)
 {
    return 0;
 }

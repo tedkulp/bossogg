@@ -25,16 +25,6 @@
 #import "input_plugin.h"
 #import "output_plugin.h"
 
-/* function pointers for the input plugin */
-extern input_identify_f input_identify;
-extern input_seek_f input_seek;
-extern input_time_total_f input_time_total;
-extern input_time_current_f input_time_current;
-extern input_play_chunk_f input_play_chunk;
-extern input_open_f input_open;
-extern input_close_f input_close;
-extern input_name_f input_name;
-
 song_s *song = NULL;
 
 /* initialize the required plugins */

@@ -30,7 +30,7 @@ static OggVorbis_File vorbis_file;
 /* return 1 if the plugin handles this file
    currently, this only looks at the file extension
 */
-int input_identify (gchar *filename)
+gint input_identify (gchar *filename)
 {
    int ret = 0;
 
@@ -47,14 +47,14 @@ int input_identify (gchar *filename)
 }
 
 /* seek a given distance */
-int input_seek (song_s *song, gdouble length)
+gint input_seek (song_s *song, gdouble length)
 {
    ov_time_seek (&vorbis_file, length);
    return 0;
 }
 
 /* return the total time of the file */
-double input_time_total (song_s *song)
+gdouble input_time_total (song_s *song)
 {
    return ov_time_total (&vorbis_file, -1);
 }
@@ -62,7 +62,7 @@ double input_time_total (song_s *song)
 /* return the current time
    currently broken since the read thread will be ahead of the write thread
 */
-double input_time_current (song_s *song)
+gdouble input_time_current (song_s *song)
 {
    LOG ("TODO: fix current time with threaded buffer");
    return ov_time_tell (&vorbis_file);
@@ -79,7 +79,7 @@ gchar *input_play_chunk (song_s *song, gint *size, gchar *buf)
 }
 
 /* open the file, perform a couple checks */
-int input_open (song_s *song, gchar *filename)
+gint input_open (song_s *song, gchar *filename)
 {
    vorbis_info *vi = NULL;
    FILE *file;
@@ -115,7 +115,7 @@ int input_open (song_s *song, gchar *filename)
 }
 
 /* close the file */
-int input_close (song_s *song)
+gint input_close (song_s *song)
 {
    ov_clear (&vorbis_file);
    LOG ("TODO: is this leaking files?");
