@@ -39,7 +39,7 @@ static gpointer producer (gpointer p)
    LOG ("producer thread started");
 
    while (1) {
-      //g_mutex_lock (prod_pause_mutex);
+      g_mutex_lock (prod_pause_mutex);
       int size;
       gchar *chunk = input_play_chunk (NULL, &size, &chunks[prod_pos * BUF_SIZE]);
       //LOG ("producing");
@@ -63,7 +63,7 @@ static gpointer producer (gpointer p)
       }
       //if (cons_pos == prod_pos + 1)
 //	 g_usleep (10000);
-      //g_mutex_unlock (prod_pause_mutex);
+      g_mutex_unlock (prod_pause_mutex);
       g_thread_yield ();
    }
       
@@ -174,7 +174,7 @@ int main (int argc, char *argv[])
    
    sleep (secs_to_sleep);
    LOG ("clearing");
-   //g_mutex_lock (prod_pause_mutex);
+   g_mutex_lock (prod_pause_mutex);
    g_mutex_lock (cons_pause_mutex);
    LOG ("about the thbuf_clear");
    thbuf_clear (thbuf);
@@ -192,7 +192,7 @@ int main (int argc, char *argv[])
    input_plugin_set (plugin);
    input_open (song, argv[2]);
    g_usleep (100000);
-   //g_mutex_unlock (prod_pause_mutex);
+   g_mutex_unlock (prod_pause_mutex);
    g_mutex_unlock (cons_pause_mutex);
    //sleep (secs_to_sleep);
    
