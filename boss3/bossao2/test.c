@@ -25,6 +25,7 @@
 #import "output_plugin.h"
 #import "thbuf.h"
 
+/*
 thbuf_t *thbuf;
 GMutex *cons_pause_mutex, *prod_pause_mutex;
 int prod_pos, cons_pos;
@@ -62,7 +63,7 @@ static gpointer producer (gpointer p)
       // g_thread_exit (0);
       //}
       //LOG ("done producing");
-      /* uncomment next line to have the producer play audio (single-threaded) */
+      // uncomment next line to have the producer play audio (single-threaded) 
       //pos++;
       prod_pos++;
       //if (pos >= THBUF_SIZE) {
@@ -105,7 +106,7 @@ static gpointer consumer (gpointer p)
       // LOG ("got a null chunk, ending thread");
       // g_thread_exit (0);
       //}
-      /* comment this next line if you want the producer to play audio */
+      // comment this next line if you want the producer to play audio 
       //LOG ("out chunk is %d %p", size, chunk);
       if (chunk != NULL && size != 0)
 	 output_plugin_write_chunk_all (chunk, size);
@@ -179,7 +180,7 @@ int main (int argc, char *argv[])
       exit (-6);
    }
 
-   /* test pausing */
+   // test pausing 
    sleep (secs_to_sleep);
    LOG ("pausing");
    g_mutex_lock (cons_pause_mutex);
@@ -187,7 +188,7 @@ int main (int argc, char *argv[])
    LOG ("unpausing");
    g_mutex_unlock (cons_pause_mutex);
 
-   /* test stopping and loading a new file */
+   // test stopping and loading a new file 
    
    sleep (secs_to_sleep);
    LOG ("clearing");
@@ -232,5 +233,22 @@ int main (int argc, char *argv[])
    g_mutex_free (cons_pause_mutex);
    g_mutex_free (prod_pause_mutex);
    
+   return 0;
+}
+*/
+
+int main (int argc, char *argv[])
+{
+   if (argc != 4) {
+      printf ("Usage: %s <filename1.ogg> <filename2.ogg> <secs-to-sleep>\n", argv[0]);
+      exit (-1);
+   }
+   
+   bossao_new (NULL, NULL);
+   bossao_play (argv[1]);
+
+   LOG ("joining..");
+   bossao_join ();
+
    return 0;
 }

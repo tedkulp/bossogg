@@ -56,6 +56,7 @@ void output_close (void)
 
 gint output_write_chunk (guchar *buffer, gint size)
 {
+   //LOG ("writing %p %d", buffer, size);
    ao_play (device, buffer, size);
    
    return 0;
