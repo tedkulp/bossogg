@@ -94,7 +94,7 @@ static gpointer get_symbol (GModule *lib, gchar *name)
 /* attempt to open the input plugin  */
 input_plugin_s *input_plugin_open (gchar *filename)
 {
-   GModule *lib = g_module_open (filename, G_MODULE_BIND_LOCAL);
+   GModule *lib = g_module_open (filename, G_MODULE_BIND_MASK);
    if (lib == NULL) {
       LOG ("Could not dlopen '%s': %s", filename, g_module_error ());
       return NULL;
